@@ -160,6 +160,12 @@ details.how ol { margin: 8px 0 0; padding-left: 1.3em; display: grid; gap: 4px; 
 
 footer.foot { border-top: 1px solid var(--rule); padding-block: 16px 28px; font-size: 0.8rem; color: var(--muted); display: grid; gap: 4px; }
 footer.foot a { color: var(--link); }
+footer.foot details summary { cursor: pointer; color: var(--link); width: fit-content; }
+footer.foot pre {
+  margin: 8px 0 0; padding: 10px 12px; max-height: 22em; overflow: auto; white-space: pre-wrap;
+  font-family: var(--font-mono); font-size: 0.72rem; line-height: 1.45; color: var(--fg);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 8px;
+}
 
 /* Board marks */
 .b-ground { fill: var(--surface); }
@@ -257,8 +263,13 @@ footer.foot a { color: var(--link); }
 </main>
 
 <footer class="foot wrap" id="foot">
-  <div>Data: <span class="mono">verification/certificate.txt</span> from <a href="https://github.com/openai/math/tree/main/preprints/Snaky-in-21-Maker-moves-September-25-2026" target="_blank" rel="noopener">“Snaky in 21 Maker moves” (OpenAI, 2026)</a>, Appendix D, used under the <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache License 2.0</a>. Every card is recomputed in this page from the combination rule (2).</div>
+  <div>Certificate data: <span class="mono">verification/certificate.txt</span> from <a href="https://github.com/openai/math/tree/main/preprints/Snaky-in-21-Maker-moves-September-25-2026" target="_blank" rel="noopener">“Snaky in 21 Maker moves” (OpenAI, 2026)</a>, Appendix D, distributed in the openai/math repository under the Apache License 2.0 (full text below). It is used unchanged, and every card is recomputed in this page from the combination rule (2).</div>
   <div id="checks">Checking the certificate…</div>
+  <div id="credit">This viewer is an independent project and is not affiliated with or endorsed by OpenAI.</div>
+  <details class="license">
+    <summary>Apache License 2.0 (full text)</summary>
+    <pre>__LICENSE_TEXT__</pre>
+  </details>
 </footer>
 <div class="tip" id="tip" hidden></div>
 
@@ -762,6 +773,19 @@ __ENGINE_JS__
   if (window.ResizeObserver) {
     new ResizeObserver(() => document.documentElement.style.setProperty('--bar-h', $('bar').offsetHeight + 'px')).observe($('bar'));
   }
+
+  // ---------- link to the source when served from GitHub Pages ----------
+  (function () {
+    const m = /^([a-z0-9-]+)\.github\.io$/i.exec(location.hostname);
+    if (!m) return;
+    const seg = location.pathname.split('/').filter(Boolean)[0];
+    const repo = seg && !/\.html?$/i.test(seg) ? seg : m[1] + '.github.io';
+    const a = document.createElement('a');
+    a.href = 'https://github.com/' + m[1] + '/' + repo;
+    a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = 'Source on GitHub';
+    $('credit').append(' ', a, '.');
+  })();
 
   // ---------- start ----------
   let start = 6;

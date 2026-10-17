@@ -3,10 +3,12 @@
     python3 build.py              -> index.html  (standalone page for any web host, or open it locally)
     python3 build.py --artifact   -> snaky-21-move-cards.html  (body-only variant for a Claude artifact)
 
-Inputs, all in this folder: template.html, engine.js, certificate.txt.
+Inputs, all in this folder: template.html, engine.js, certificate.txt, LICENSE.
 The certificate must be byte-identical to the paper's (SHA-256 checked below).
+LICENSE must hold the Apache License 2.0 text, which the page displays for the certificate.
 """
 import hashlib
+import html
 import json
 import re
 import sys
@@ -32,8 +34,12 @@ def assemble(here: Path) -> str:
         sys.exit('certificate.txt does not match the paper (SHA-256 mismatch)')
     engine = (here / 'engine.js').read_text()
     page = (here / 'template.html').read_text()
+    license_text = (here / 'LICENSE').read_text()
+    if 'Apache License' not in license_text or 'Version 2.0' not in license_text:
+        sys.exit('LICENSE must hold the Apache License 2.0 text, which the page shows for the certificate data')
     cert_json = json.dumps(cert.decode('ascii'))
     assert '</script' not in cert_json and '</script' not in engine
+    page = page.replace('__LICENSE_TEXT__', html.escape(license_text.strip('\n'), quote=False))
     return page.replace('__CERT_JSON__', cert_json).replace('__ENGINE_JS__', engine)
 
 
