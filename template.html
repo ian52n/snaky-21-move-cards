@@ -1,0 +1,809 @@
+<title>Snaky 21-Move Cards</title>
+<!--claude-only--><meta name="claude:viewport-fit-sides" content="cover"><!--/claude-only-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=STIX+Two+Text:ital,wght@0,500;0,600;1,500&display=swap">
+<style>
+/* Layout: a sticky card bar; below it the card's title row, then a bench with the card's own board pinned on the left and its child boards on the right. */
+:root {
+  --bg: #edf1ee;
+  --surface: #f8faf8;
+  --fg: #17201c;
+  --muted: #55645c;
+  --rule: #d0dbd4;
+  --grid: #d3e1d8;
+  --link: #2152b5;
+  --chip: #e2e9e4;
+  /* Marks drawn on the boards. Cells are white, so these stay fixed in both themes. */
+  --cell: #ffffff;
+  --cell-line: #3a423d;
+  --ink: #131615;
+  --pivot: #a3a8a5;
+  --mark-accent: #2457c5;
+  --mark-accent-wash: rgba(36, 87, 197, 0.16);
+  --mark-breaker: #cf3a1e;
+  --font-display: "STIX Two Text", "STIX Two", Cambria, Georgia, serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --bar-h: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101513; --surface: #171e1a; --fg: #e1e9e4; --muted: #94a39b; --rule: #29342e;
+    --grid: #232e28; --link: #93b2ff; --chip: #212b26;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101513; --surface: #171e1a; --fg: #e1e9e4; --muted: #94a39b; --rule: #29342e;
+  --grid: #232e28; --link: #93b2ff; --chip: #212b26;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px);
+  z-index: 10; background: var(--surface);
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.m { font-family: var(--font-display); font-style: italic; font-size: 1.08em; }
+.mono { font-family: var(--font-mono); }
+.wrap { max-width: 1320px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* Card bar */
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--surface); border-bottom: 1px solid var(--rule);
+}
+.bar .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px; padding-block: 10px; }
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand b { font-family: var(--font-display); font-size: 1.35rem; font-weight: 600; letter-spacing: 0.01em; }
+.brand span { color: var(--muted); font-size: 0.82rem; }
+.pager { display: flex; align-items: center; gap: 8px; flex: 1 1 360px; min-width: 0; }
+.pager button {
+  width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--rule);
+  background: var(--bg); font-size: 1.05rem; line-height: 1; flex: none;
+}
+.pager button:hover { border-color: var(--muted); }
+.pager button:disabled { opacity: 0.35; cursor: default; }
+.cardno { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.85rem; }
+.cardno input {
+  width: 4.6em; height: 36px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--rule);
+  background: var(--bg); font-family: var(--font-mono); font-size: 0.95rem; color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+#scrub { flex: 1 1 140px; min-width: 0; accent-color: var(--link); }
+
+/* Title row */
+.head { display: grid; gap: 6px; padding-block: 20px 14px; }
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 0.85rem; color: var(--muted); min-height: 1.5em; }
+.crumbs button { border: 0; background: none; padding: 1px 4px; border-radius: 4px; color: var(--link); }
+.crumbs button:hover { background: var(--chip); }
+.crumbs .here { color: var(--fg); font-weight: 500; padding: 1px 4px; }
+.crumbs .sep { opacity: 0.6; }
+.titleline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+h1 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: clamp(1.9rem, 4vw, 2.6rem); line-height: 1.1; text-wrap: balance; font-variant-numeric: lining-nums tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn {
+  border: 1px solid var(--rule); background: var(--surface); border-radius: 8px;
+  padding: 5px 11px; font-size: 0.85rem;
+}
+.btn:hover { border-color: var(--muted); }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 4px 0 0; padding: 0; font-size: 0.92rem; }
+.facts div { display: flex; gap: 6px; align-items: baseline; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-family: var(--font-mono); font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+.frame-note { font-size: 0.85rem; color: var(--muted); }
+.frame-note .mono { color: var(--fg); }
+
+/* Bench */
+.bench { display: grid; grid-template-columns: minmax(0, 500px) minmax(0, 1fr); gap: 28px; align-items: start; padding-bottom: 40px; }
+.left { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--bar-h) + 12px); display: grid; gap: 12px; }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; }
+.boardbox { padding: 10px; }
+.boardbox svg { display: block; width: 100%; height: auto; max-height: calc(100vh - var(--bar-h) - 210px); touch-action: manipulation; }
+.sim { font-size: 0.9rem; min-height: 3em; padding: 10px 12px; border-radius: 8px; background: var(--chip); }
+.sim b { font-weight: 600; }
+.sim .bad { color: var(--mark-breaker); }
+.legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px 14px; font-size: 0.82rem; color: var(--muted); padding: 2px 2px; }
+.legend div { display: flex; align-items: center; gap: 8px; }
+.legend svg { width: 20px; height: 20px; flex: none; }
+details.how { font-size: 0.88rem; }
+details.how summary { cursor: pointer; color: var(--link); }
+details.how ol { margin: 8px 0 0; padding-left: 1.3em; display: grid; gap: 4px; max-width: 62ch; }
+
+.right { display: grid; gap: 18px; min-width: 0; }
+.right h2 { margin: 0 0 8px; font-family: var(--font-display); font-weight: 600; font-size: 1.25rem; }
+.right h2 small { font-family: var(--font-body); font-weight: 400; font-size: 0.85rem; color: var(--muted); margin-left: 6px; }
+.cert { padding: 10px 12px; font-family: var(--font-mono); font-size: 0.84rem; line-height: 1.7; max-height: 9.5em; overflow: auto; overflow-wrap: anywhere; }
+.cert .num { color: var(--muted); }
+.cert .pv { background: var(--pivot); color: #131615; border-radius: 3px; padding: 0 3px; }
+.cert .tk { border-radius: 3px; padding: 0 2px; cursor: pointer; }
+.cert .tk:hover, .cert .tk.on { background: var(--mark-accent-wash); outline: 1px solid var(--mark-accent); }
+.cert .note { font-family: var(--font-body); color: var(--muted); }
+.refs { display: flex; flex-wrap: wrap; gap: 6px; }
+.refs button {
+  border: 1px solid var(--rule); background: var(--surface); border-radius: 999px; padding: 1px 9px;
+  font-family: var(--font-mono); font-size: 0.8rem; font-variant-numeric: tabular-nums;
+}
+.refs button:hover { border-color: var(--muted); }
+.refs .more { font-family: var(--font-body); color: var(--link); }
+.subtle { color: var(--muted); font-size: 0.86rem; margin: 0; max-width: 70ch; }
+
+.kids { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
+.child {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 8px;
+  display: grid; gap: 5px; cursor: pointer; text-align: left; position: relative;
+  transition: opacity 120ms ease, border-color 120ms ease;
+}
+.child:hover, .child.hot { border-color: var(--mark-accent); }
+.child .top { display: flex; align-items: baseline; gap: 6px; font-size: 0.86rem; min-width: 0; }
+.child .ix { font-family: var(--font-mono); color: var(--muted); font-size: 0.78rem; }
+.child .what { font-weight: 600; white-space: nowrap; }
+.child .ht { margin-left: auto; font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+.child .place { font-size: 0.74rem; color: var(--muted); font-family: var(--font-mono); min-height: 1.2em; overflow-wrap: anywhere; }
+.child svg { display: block; width: 100%; height: auto; }
+.child .status { font-size: 0.78rem; color: var(--muted); min-height: 1.3em; }
+.child.blocked { opacity: 0.42; border-color: var(--mark-breaker); }
+.child.blocked .status { color: var(--mark-breaker); font-weight: 600; }
+.child.pick { border-color: var(--mark-accent); box-shadow: 0 0 0 2px var(--mark-accent); }
+.child.pick .status { color: var(--link); font-weight: 600; }
+.base-note { padding: 14px 16px; font-size: 0.92rem; max-width: 62ch; }
+
+footer.foot { border-top: 1px solid var(--rule); padding-block: 16px 28px; font-size: 0.8rem; color: var(--muted); display: grid; gap: 4px; }
+footer.foot a { color: var(--link); }
+
+/* Board marks */
+.b-ground { fill: var(--surface); }
+.b-grid { fill: none; stroke: var(--grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.b-env { fill: var(--cell); stroke: var(--cell-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.b-piv { fill: var(--pivot); stroke: var(--cell-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.b-x { fill: none; stroke: var(--ink); stroke-width: 0.11; stroke-linecap: round; }
+.b-ring { fill: none; stroke: var(--ink); stroke-width: 0.085; }
+.b-ppiv { fill: none; stroke: var(--mark-accent); stroke-width: 0.14; }
+.b-penv { fill: none; stroke: var(--muted); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
+.b-axis { fill: var(--muted); font-family: var(--font-mono); font-size: 0.4px; }
+.b-common { fill: none; stroke: var(--mark-accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-dasharray: 5 3; }
+.b-childhi { fill: var(--mark-accent-wash); stroke: var(--mark-accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.b-hover { fill: none; stroke: var(--mark-accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.b-reply { fill: var(--mark-breaker); stroke: #ffffff; stroke-width: 0.06; }
+.b-reply.ghost { opacity: 0.55; }
+.b-old { fill: var(--mark-breaker); opacity: 0.45; }
+
+.tip {
+  position: fixed; z-index: 20; pointer-events: none; max-width: 260px;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 6px 9px; font-size: 0.8rem; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+}
+.tip b { font-family: var(--font-mono); font-weight: 500; }
+
+@media (max-width: 980px) {
+  .bench { grid-template-columns: minmax(0, 1fr); }
+  .left { position: static; }
+  .boardbox svg { max-height: none; }
+}
+@media (max-width: 520px) {
+  .kids { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .brand span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .child { transition: none; } }
+</style>
+
+<header class="bar" id="bar">
+  <div class="wrap">
+    <div class="brand"><b>Snaky</b><span>21-move certificate · cards 0–727</span></div>
+    <nav class="pager" aria-label="Card navigation">
+      <button id="prev" type="button" aria-label="Previous card" title="Previous card (←)">←</button>
+      <label class="cardno" for="cardno">Card <input id="cardno" type="number" min="0" max="727" step="1" inputmode="numeric"></label>
+      <button id="next" type="button" aria-label="Next card" title="Next card (→)">→</button>
+      <input id="scrub" type="range" min="0" max="727" step="1" aria-label="Scrub through cards">
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="head">
+    <div class="crumbs" id="crumbs"></div>
+    <div class="titleline">
+      <div>
+        <div class="eyebrow" id="eyebrow"></div>
+        <h1 id="title"></h1>
+      </div>
+      <div class="actions" id="actions"></div>
+    </div>
+    <dl class="facts" id="facts"></dl>
+    <div class="frame-note" id="framenote"></div>
+  </section>
+
+  <section class="bench">
+    <div class="left">
+      <div class="panel boardbox" id="mainbox"></div>
+      <div class="sim" id="sim" aria-live="polite"></div>
+      <div class="legend" id="legend"></div>
+      <details class="how">
+        <summary>How to read a card</summary>
+        <ol>
+          <li>A card is a claim (<span class="m">A</span>, <span class="m">T</span>, <span class="m">h</span>). If Maker owns every X and Breaker owns no cell of the drawn region, Maker wins within <span class="m">h</span> more moves.</li>
+          <li>Maker claims the gray pivot. After that, Maker owns every X on every child board. The blue outline on a child board marks this pivot.</li>
+          <li>Breaker's reply blocks exactly the children whose envelope contains it. Cells common to every child envelope already belong to Maker, so at least one child survives.</li>
+          <li>Maker continues with the first surviving child in the certificate's order. Its height is at most <span class="m">h</span> − 1.</li>
+        </ol>
+      </details>
+    </div>
+    <div class="right">
+      <div>
+        <h2>Certificate entry <small id="certlabel"></small></h2>
+        <div class="panel cert" id="cert"></div>
+      </div>
+      <div id="refwrap">
+        <h2>Referenced by <small id="refcount"></small></h2>
+        <div class="refs" id="refs"></div>
+      </div>
+      <div>
+        <h2>Child conditions <small id="kidcount"></small></h2>
+        <p class="subtle" id="kidnote"></p>
+        <div class="kids" id="kids" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot wrap" id="foot">
+  <div>Data: <span class="mono">verification/certificate.txt</span> from <a href="https://github.com/openai/math/tree/main/preprints/Snaky-in-21-Maker-moves-September-25-2026" target="_blank" rel="noopener">“Snaky in 21 Maker moves” (OpenAI, 2026)</a>, Appendix D, used under the <a href="https://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener">Apache License 2.0</a>. Every card is recomputed in this page from the combination rule (2).</div>
+  <div id="checks">Checking the certificate…</div>
+</footer>
+<div class="tip" id="tip" hidden></div>
+
+<script id="cert-data" type="application/json">__CERT_JSON__</script>
+<script>
+__ENGINE_JS__
+</script>
+<script>
+(function () {
+  'use strict';
+  const E = window.SnakyEngine;
+  const CERT = JSON.parse(document.getElementById('cert-data').textContent);
+  const model = E.build(CERT);
+  const NODES = model.nodes, ROOT = model.cardRoot, LAST = ROOT.length - 1;
+  const SYM = E.SYMBOLS, K = E.key, UK = E.unkey;
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- small helpers ----------
+  const num = (n) => (n < 0 ? '−' + (-n) : String(n));
+  const fmt = (p) => '(' + num(p[0]) + ', ' + num(p[1]) + ')';
+  const fmtK = (k) => fmt(UK(k));
+  const code = (p) => SYM[p[0]] + SYM[p[1]];
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function inverse(P) {
+    return { a: P.a, b: P.c, c: P.b, d: P.d, tx: -(P.a * P.tx + P.c * P.ty), ty: -(P.b * P.tx + P.d * P.ty) };
+  }
+  function lin(a, b) {
+    const parts = [];
+    if (a) parts.push((a < 0 ? '−' : '') + 'x');
+    if (b) parts.push((b < 0 ? '−' : '') + 'y');
+    return parts.join(' + ');
+  }
+  function describeShort(P) {
+    let s = '↦ (' + lin(P.a, P.b) + ', ' + lin(P.c, P.d) + ')';
+    if (P.tx || P.ty) s += ' + (' + num(P.tx) + ', ' + num(P.ty) + ')';
+    return s;
+  }
+  function describe(P) { return '(x, y) ' + describeShort(P); }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+
+  // ---------- navigation state ----------
+  // path: list of {node, F, via, reply}. F maps the node's own coordinates to the
+  // coordinates on screen; every entry shares the screen frame of path[0].
+  // reply: a pinned Breaker reply at the parent level that this child survived.
+  let path = [];
+  let pinned = null, hovering = null, hotChild = null;
+  let cur = null;
+
+  function currentCard() {
+    const n = NODES[path[path.length - 1].node];
+    return n.line;
+  }
+  function goCard(j) {
+    j = Math.max(0, Math.min(LAST, j | 0));
+    path = [{ node: ROOT[j], F: E.ID, via: null, reply: null }];
+    pinned = null; hovering = null; hotChild = null;
+    render();
+    try { history.replaceState(null, '', '#c' + j); } catch (e) {}
+    try { localStorage.setItem('snaky21.card', String(j)); } catch (e) {}
+  }
+  function drill(i) {
+    const kid = cur.kids[i];
+    if (!kid) return;
+    const carry = pinned !== null && !kid.T.has(pinned) ? pinned : null;
+    path.push({ node: kid.target.id, F: kid.P, via: i, reply: carry });
+    pinned = null; hovering = null; hotChild = null;
+    render();
+    window.scrollTo({ top: 0 });
+  }
+  function toDepth(d) {
+    if (d >= path.length - 1) return;
+    const removed = path.splice(d + 1);
+    pinned = removed[0].reply; hovering = null; hotChild = null;
+    render();
+  }
+  function showNative() {
+    const n = NODES[path[path.length - 1].node];
+    const chain = [];
+    let id = n.id;
+    while (id !== null) { chain.unshift(id); id = NODES[id].parent; }
+    path = chain.map((nid, k) => {
+      let via = null;
+      if (k > 0) via = NODES[chain[k - 1]].children.findIndex((ch) => ch.kind === 'inline' && ch.node === nid);
+      return { node: nid, F: E.ID, via, reply: null };
+    });
+    pinned = null; hovering = null; hotChild = null;
+    render();
+  }
+
+  // ---------- board drawing ----------
+  function bboxOf(S, extra) {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    const take = (x, y) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); };
+    for (const k of S) { const [x, y] = UK(k); take(x, y); }
+    if (extra) for (const p of extra) if (p) take(p[0], p[1]);
+    return { x0: x0 - 1, x1: x1 + 1, y0: y0 - 1, y1: y1 + 1 };
+  }
+  function squares(S, bb) {
+    let d = '';
+    for (const k of S) { const [x, y] = UK(k); d += 'M' + (x - bb.x0) + ' ' + (bb.y1 - y) + 'h1v1h-1z'; }
+    return d;
+  }
+  function outline(S, bb) {
+    let d = '';
+    for (const k of S) {
+      const [x, y] = UK(k), X = x - bb.x0, Y = bb.y1 - y;
+      if (!S.has(K(x - 1, y))) d += 'M' + X + ' ' + Y + 'v1';
+      if (!S.has(K(x + 1, y))) d += 'M' + (X + 1) + ' ' + Y + 'v1';
+      if (!S.has(K(x, y + 1))) d += 'M' + X + ' ' + Y + 'h1';
+      if (!S.has(K(x, y - 1))) d += 'M' + X + ' ' + (Y + 1) + 'h1';
+    }
+    return d;
+  }
+  function crosses(S, bb) {
+    let d = '';
+    for (const k of S) {
+      const [x, y] = UK(k), X = x - bb.x0, Y = bb.y1 - y;
+      const a = (X + 0.24).toFixed(2), b = (Y + 0.24).toFixed(2), c = (X + 0.76).toFixed(2), e = (Y + 0.76).toFixed(2);
+      d += 'M' + a + ' ' + b + 'L' + c + ' ' + e + 'M' + c + ' ' + b + 'L' + a + ' ' + e;
+    }
+    return d;
+  }
+  function boardSVG(o) {
+    const bb = o.bb, W = bb.x1 - bb.x0 + 1, H = bb.y1 - bb.y0 + 1;
+    const pad = o.axes ? { l: 1.1, t: 0.08, r: 0.08, b: 0.95 } : { l: 0.04, t: 0.04, r: 0.04, b: 0.04 };
+    const vb = [-pad.l, -pad.t, W + pad.l + pad.r, H + pad.t + pad.b].map((v) => +v.toFixed(2)).join(' ');
+    let s = '<svg viewBox="' + vb + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + esc(o.label || '') + '">';
+    s += '<rect class="b-ground" x="0" y="0" width="' + W + '" height="' + H + '"/>';
+    let g = '';
+    for (let i = 0; i <= W; i++) g += 'M' + i + ' 0V' + H;
+    for (let j = 0; j <= H; j++) g += 'M0 ' + j + 'H' + W;
+    s += '<path class="b-grid" d="' + g + '"/>';
+    if (o.parentT) s += '<path class="b-penv" d="' + outline(o.parentT, bb) + '"/>';
+    s += '<path class="b-env" d="' + squares(o.T, bb) + '"/>';
+    const cellRect = (p, cls) => '<rect class="' + cls + '" x="' + (p[0] - bb.x0) + '" y="' + (bb.y1 - p[1]) + '" width="1" height="1"/>';
+    if (o.pivot) s += cellRect(o.pivot, 'b-piv');
+    if (o.missing) {
+      s += cellRect(o.missing, 'b-piv');
+      s += '<circle class="b-ring" cx="' + (o.missing[0] - bb.x0 + 0.5) + '" cy="' + (bb.y1 - o.missing[1] + 0.5) + '" r="0.27"/>';
+    }
+    s += '<path class="b-x" d="' + crosses(o.A, bb) + '"/>';
+    if (o.parentPivot) {
+      s += '<rect class="b-ppiv" x="' + (o.parentPivot[0] - bb.x0 + 0.07) + '" y="' + (bb.y1 - o.parentPivot[1] + 0.07) + '" width="0.86" height="0.86"/>';
+    }
+    if (o.axes) {
+      for (let x = bb.x0; x <= bb.x1; x++) {
+        s += '<text class="b-axis" x="' + (x - bb.x0 + 0.5) + '" y="' + (H + 0.62) + '" text-anchor="middle">' + num(x) + '</text>';
+      }
+      for (let y = bb.y0; y <= bb.y1; y++) {
+        s += '<text class="b-axis" x="-0.22" y="' + (bb.y1 - y + 0.64) + '" text-anchor="end">' + num(y) + '</text>';
+      }
+    }
+    s += '<g class="ov"></g></svg>';
+    return s;
+  }
+  function dot(p, bb, cls, r) {
+    return '<circle class="' + cls + '" cx="' + (p[0] - bb.x0 + 0.5) + '" cy="' + (bb.y1 - p[1] + 0.5) + '" r="' + (r || 0.3) + '"/>';
+  }
+  function inBox(p, bb) { return p[0] >= bb.x0 && p[0] <= bb.x1 && p[1] >= bb.y0 && p[1] <= bb.y1; }
+
+  // ---------- legend ----------
+  function swatch(inner) {
+    return '<svg viewBox="-0.15 -0.15 1.3 1.3" aria-hidden="true">' + inner + '</svg>';
+  }
+  $('legend').innerHTML = [
+    [swatch('<rect class="b-env" width="1" height="1"/><path class="b-x" d="M.24 .24L.76 .76M.76 .24L.24 .76"/>'), 'Required cell: Maker owns it (<span class="m">A</span>)'],
+    [swatch('<rect class="b-piv" width="1" height="1"/>'), 'Pivot: the cell Maker claims next'],
+    [swatch('<rect class="b-env" width="1" height="1"/>'), 'Envelope: must hold no Breaker stone (<span class="m">T</span>)'],
+    [swatch('<rect class="b-piv" width="1" height="1"/><circle class="b-ring" cx=".5" cy=".5" r=".27"/>'), 'Base card: claiming it completes Snaky'],
+    [swatch('<rect class="b-env" width="1" height="1"/><path class="b-x" d="M.24 .24L.76 .76M.76 .24L.24 .76"/><rect class="b-ppiv" x=".07" y=".07" width=".86" height=".86"/>'), 'On child boards: the parent’s pivot'],
+    [swatch('<rect class="b-ground" width="1" height="1"/><path class="b-penv" d="M0 .5H1"/>'), 'On child boards: edge of the parent’s envelope'],
+    [swatch('<rect class="b-ground" width="1" height="1"/><circle class="b-reply" cx=".5" cy=".5" r=".3"/>'), 'A Breaker reply you place on the board'],
+    [swatch('<rect class="b-ground" width="1" height="1"/><circle class="b-old" cx=".5" cy=".5" r=".26"/>'), 'An earlier reply, kept when you open a surviving child'],
+  ].map(([sw, t]) => '<div>' + sw + '<span>' + t + '</span></div>').join('');
+
+  // ---------- render ----------
+  function render() {
+    const e = path[path.length - 1];
+    const n = NODES[e.node], F = e.F;
+    const A = E.mapSet(F, n.A), T = E.mapSet(F, n.T);
+    const pivot = E.mapPoint(F, n.pivot), missing = E.mapPoint(F, n.missing);
+    const kids = n.kind === 'comb' ? E.placedChildren(model, n.id, F) : [];
+    const owned = new Set(A);
+    if (pivot) owned.add(K(pivot[0], pivot[1]));
+    const old = path.map((p) => p.reply).filter((r) => r !== null);
+    let common = null;
+    for (const kd of kids) {
+      if (common === null) common = new Set(kd.T);
+      else for (const k of common) if (!kd.T.has(k)) common.delete(k);
+    }
+    const bb = bboxOf(T, [pivot, missing]);
+    cur = { n, F, A, T, pivot, missing, kids, owned, old: new Set(old), common, bb };
+
+    const j = n.line;
+    $('cardno').value = j; $('scrub').value = j;
+    $('prev').disabled = j <= 0; $('next').disabled = j >= LAST;
+
+    // breadcrumbs
+    const crumbs = path.map((p, d) => {
+      let label;
+      if (d === 0) label = NODES[p.node].parent === null ? 'Card ' + NODES[p.node].line : 'Inline node';
+      else {
+        const parentNode = NODES[path[d - 1].node];
+        const ch = parentNode.children[p.via];
+        label = '#' + (p.via + 1) + ' ' + (ch.kind === 'ref' ? 'card ' + ch.card : 'inline');
+      }
+      return d === path.length - 1
+        ? '<span class="here">' + esc(label) + '</span>'
+        : '<button type="button" data-depth="' + d + '">' + esc(label) + '</button>';
+    });
+    $('crumbs').innerHTML = path.length > 1 ? crumbs.join('<span class="sep">›</span>') : '';
+
+    // title
+    const isInline = n.kind === 'comb' && n.parent !== null;
+    const parts = [];
+    if (path.length > 1) {
+      const pn = NODES[path[path.length - 2].node];
+      parts.push('Child #' + (e.via + 1) + ' of ' + (pn.parent === null ? 'card ' + pn.line : 'an inline node in card ' + pn.line));
+    }
+    if (n.kind === 'base') parts.push('Base card · Lemma 4');
+    else if (isInline) parts.push('Inline combination · nesting depth ' + n.depth);
+    else if (n.card === LAST) parts.push('Final card · the empty-board strategy');
+    if (!parts.length) parts.push('Card');
+    $('eyebrow').textContent = parts.join(' · ');
+    $('title').textContent = isInline ? 'Card ' + n.line + ', inline node' : 'Card ' + n.line;
+
+    let acts = '';
+    if (path.length > 1) acts += '<button type="button" class="btn" id="up">Up to parent</button>';
+    if (!E.isIdentity(F)) acts += '<button type="button" class="btn" id="native">Show in its own coordinates</button>';
+    $('actions').innerHTML = acts;
+    if ($('up')) $('up').onclick = () => toDepth(path.length - 2);
+    if ($('native')) $('native').onclick = showNative;
+
+    // facts
+    const f = [];
+    if (n.kind === 'base') {
+      f.push(['completion cell', fmt(missing)]);
+    } else {
+      f.push(['pivot', fmt(pivot)]);
+    }
+    f.push(['<span class="m">h</span>', String(n.h)]);
+    f.push(['|<span class="m">A</span>|', String(A.size)]);
+    f.push(['|<span class="m">T</span>|', String(T.size)]);
+    if (kids.length) {
+      f.push(['children', String(kids.length)]);
+      const extra = [...common].filter((k) => !owned.has(k)).length;
+      f.push(['<span id="commonfact" title="Hover to outline these cells on the board">cells in every child envelope</span>',
+        String(common.size) + (extra ? ' (' + extra + ' not owned)' : ' (all Maker’s)')]);
+    }
+    $('facts').innerHTML = f.map(([k, v]) => '<div><dt>' + k + '</dt><dd>' + v + '</dd></div>').join('');
+    const cf = $('commonfact');
+    if (cf) {
+      cf.style.borderBottom = '1px dotted currentColor'; cf.style.cursor = 'help';
+      cf.onmouseenter = () => showCommon(true); cf.onmouseleave = () => showCommon(false);
+    }
+    const rootNode = NODES[path[0].node];
+    let fnote = E.isIdentity(F) ? '' :
+      'Drawn in the coordinates of ' + (rootNode.parent === null ? 'card ' + rootNode.line : 'its card') +
+      ' via <span class="mono">' + esc(describe(F)) + '</span>. Coordinates below are in that frame.';
+    if (cur.old.size) fnote += (fnote ? ' ' : '') + 'Faded red dots are Breaker replies made earlier on this path.';
+    $('framenote').innerHTML = fnote;
+
+    // main board
+    const label = (n.kind === 'base' ? 'Base card ' : 'Card ') + n.line + ': ' + A.size + ' required cells, envelope of ' + T.size + ' cells.';
+    $('mainbox').innerHTML = boardSVG({ bb, A, T, pivot, missing, axes: true, label });
+    cur.svg = $('mainbox').querySelector('svg');
+    cur.svg.style.maxWidth = Math.round((bb.x1 - bb.x0 + 2.2) * 52) + 'px';
+    cur.svg.style.margin = '0 auto';
+    cur.ov = cur.svg.querySelector('.ov');
+    wireBoard();
+
+    // certificate entry
+    if (n.kind === 'base') {
+      $('certlabel').textContent = '';
+      $('cert').innerHTML = '<span class="note">Base cards are not listed in the file. Card ' + n.card +
+        ' is (<span class="m">S</span> ∖ {<span class="m">s</span><sub>' + n.card + '</sub>}, <span class="m">S</span>, 1) with <span class="m">s</span><sub>' + n.card + '</sub> = ' +
+        fmt(n.missing) + ' in Snaky’s own coordinates.</span>';
+    } else {
+      $('certlabel').textContent = isInline ? 'inline expression inside card ' + n.line : 'line ' + n.line + ' of Appendix D';
+      let s = n.parent === null ? '<span class="num">' + n.line + '</span> ' : '(';
+      s += '<span class="pv" title="pivot ' + esc(fmt(n.pivot)) + '">' + code(n.pivot) + '</span>';
+      n.children.forEach((ch, i) => {
+        const t = ch.kind === 'ref' ? ch.token : NODES[ch.node].text;
+        s += ' <span class="tk" data-i="' + i + '">' + esc(t) + '</span>';
+      });
+      if (n.parent !== null) s += ')';
+      $('cert').innerHTML = s;
+      $('cert').querySelectorAll('.tk').forEach((el) => {
+        const i = +el.dataset.i;
+        el.onmouseenter = () => setHotChild(i);
+        el.onmouseleave = () => setHotChild(null);
+        el.onclick = () => drill(i);
+      });
+    }
+
+    // referenced by
+    if (n.parent === null) {
+      const refs = [...model.usedBy[n.line]].sort((a, b) => a - b);
+      $('refwrap').hidden = false;
+      $('refcount').textContent = refs.length ? plural(refs.length, 'card', 'cards') : 'none (this is the final card)';
+      const LIM = 36;
+      const chip = (r) => '<button type="button" data-card="' + r + '">' + r + '</button>';
+      let html = refs.slice(0, LIM).map(chip).join('');
+      if (refs.length > LIM) html += '<button type="button" class="more" id="morerefs">+' + (refs.length - LIM) + ' more</button>';
+      $('refs').innerHTML = html;
+      if ($('morerefs')) $('morerefs').onclick = () => { $('refs').innerHTML = refs.map(chip).join(''); };
+    } else {
+      $('refwrap').hidden = true;
+    }
+
+    // child boards
+    if (!kids.length) {
+      $('kidcount').textContent = '';
+      $('kidnote').textContent = '';
+      $('kids').innerHTML = '<div class="panel base-note">This is a base card (Lemma 4). Maker owns five cells of a copy of Snaky and Breaker owns none of its six cells, so claiming the ringed gray cell completes the copy. Its height is 1.</div>';
+    } else {
+      $('kidcount').textContent = plural(kids.length, 'child', 'children');
+      $('kidnote').textContent = 'Each child is drawn in the same frame as the board on the left. Hover a child to outline its envelope there; click it to open it.';
+      $('kids').innerHTML = kids.map((kd, i) => {
+        const ch = kd.ch;
+        const what = ch.kind === 'ref' ? (ch.card < 6 ? 'base card ' + ch.card : 'card ' + ch.card) : 'inline';
+        const place = ch.kind === 'ref'
+          ? esc(ch.token) + (ch.s === 0 && !ch.dx && !ch.dy ? '' : '&ensp;' + esc(describeShort(ch.P)))
+          : 'pivot ' + esc(fmt(kd.pivot));
+        const svg = boardSVG({
+          bb, A: kd.A, T: kd.T, pivot: kd.pivot, missing: kd.missing,
+          parentT: T, parentPivot: pivot, label: 'Child ' + (i + 1) + ', ' + what,
+        });
+        return '<article class="child" tabindex="0" role="button" data-i="' + i + '" aria-label="Open child ' + (i + 1) + ', ' + esc(what) + '">' +
+          '<div class="top"><span class="ix">#' + (i + 1) + '</span><span class="what">' + esc(what) + '</span><span class="ht">h ' + kd.h + '</span></div>' +
+          '<div class="place">' + place + '</div>' + svg +
+          '<div class="status"></div></article>';
+      }).join('');
+      $('kids').querySelectorAll('.child').forEach((el) => {
+        const i = +el.dataset.i;
+        el.onclick = () => drill(i);
+        el.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); drill(i); } };
+        el.onmouseenter = () => setHotChild(i);
+        el.onmouseleave = () => setHotChild(null);
+        el.onfocus = () => setHotChild(i);
+        el.onblur = () => setHotChild(null);
+        kids[i].el = el;
+        kids[i].ov = el.querySelector('.ov');
+      });
+    }
+    updateSim();
+  }
+
+  // ---------- interaction on the main board ----------
+  function cellAt(ev) {
+    const ctm = cur.svg.getScreenCTM();
+    if (!ctm) return null;
+    const pt = new DOMPoint(ev.clientX, ev.clientY).matrixTransform(ctm.inverse());
+    const W = cur.bb.x1 - cur.bb.x0 + 1, H = cur.bb.y1 - cur.bb.y0 + 1;
+    const col = Math.floor(pt.x), row = Math.floor(pt.y);
+    if (col < 0 || row < 0 || col >= W || row >= H) return null;
+    return K(cur.bb.x0 + col, cur.bb.y1 - row);
+  }
+  function roleOf(k) {
+    if (cur.n.kind === 'base') {
+      if (cur.missing && k === K(cur.missing[0], cur.missing[1])) return 'completion';
+      if (cur.A.has(k)) return 'required';
+      return 'outside';
+    }
+    if (cur.old.has(k)) return 'old';
+    if (cur.pivot && k === K(cur.pivot[0], cur.pivot[1])) return 'pivot';
+    if (cur.A.has(k)) return 'required';
+    if (cur.T.has(k)) return 'envelope';
+    return 'outside';
+  }
+  function wireBoard() {
+    const svg = cur.svg, tip = $('tip');
+    svg.onpointermove = (ev) => {
+      const k = cellAt(ev);
+      if (k !== hovering) { hovering = k; updateSim(); }
+      if (k === null) { tip.hidden = true; return; }
+      const role = roleOf(k), [x, y] = UK(k);
+      const text = {
+        required: 'Required: Maker already owns this cell.',
+        pivot: 'Pivot: Maker claims this cell next.',
+        envelope: 'Envelope: free of Breaker for now. Breaker may reply here.',
+        outside: cur.n.kind === 'base' ? 'Not part of this copy of Snaky.' : 'Outside the envelope. A reply here blocks no child.',
+        completion: 'Maker claims this cell and completes Snaky.',
+        old: 'Breaker took this cell earlier on this path.',
+      }[role];
+      tip.innerHTML = '<b>' + fmt([x, y]) + '</b><br>' + text;
+      tip.hidden = false;
+      const w = tip.offsetWidth, h = tip.offsetHeight;
+      let left = ev.clientX + 14, top = ev.clientY + 14;
+      if (left + w > window.innerWidth - 8) left = ev.clientX - w - 14;
+      if (top + h > window.innerHeight - 8) top = ev.clientY - h - 14;
+      tip.style.left = Math.max(8, left) + 'px';
+      tip.style.top = Math.max(8, top) + 'px';
+    };
+    svg.onpointerleave = () => { hovering = null; tip.hidden = true; updateSim(); };
+    svg.onclick = (ev) => {
+      const k = cellAt(ev);
+      if (k === null || !isReply(k)) { pinned = null; updateSim(); return; }
+      pinned = pinned === k ? null : k;
+      updateSim();
+    };
+  }
+  function isReply(k) {
+    if (cur.n.kind !== 'comb') return false;
+    const r = roleOf(k);
+    return r === 'envelope' || r === 'outside';
+  }
+  function setHotChild(i) {
+    hotChild = i;
+    if (cur.kids) cur.kids.forEach((kd, idx) => kd.el && kd.el.classList.toggle('hot', idx === i));
+    $('cert').querySelectorAll('.tk').forEach((el) => el.classList.toggle('on', +el.dataset.i === i));
+    drawOverlay();
+  }
+  let commonOn = false;
+  function showCommon(on) { commonOn = on; drawOverlay(); }
+
+  function drawOverlay() {
+    if (!cur || !cur.ov) return;
+    const bb = cur.bb;
+    let s = '';
+    if (commonOn && cur.common) s += '<path class="b-common" d="' + outline(cur.common, bb) + '"/>';
+    if (hotChild !== null && cur.kids[hotChild]) {
+      const kd = cur.kids[hotChild];
+      s += '<path class="b-childhi" d="' + squares(kd.T, bb) + '"/>';
+    }
+    for (const k of cur.old) { const p = UK(k); if (inBox(p, bb)) s += dot(p, bb, 'b-old', 0.26); }
+    if (hovering !== null && hovering !== pinned) {
+      const p = UK(hovering);
+      s += '<rect class="b-hover" x="' + (p[0] - bb.x0) + '" y="' + (bb.y1 - p[1]) + '" width="1" height="1"/>';
+    }
+    const r = activeReply();
+    if (r !== null) s += dot(UK(r), bb, 'b-reply' + (r === pinned ? '' : ' ghost'));
+    cur.ov.innerHTML = s;
+  }
+  function activeReply() {
+    if (pinned !== null) return pinned;
+    if (hovering !== null && isReply(hovering)) return hovering;
+    return null;
+  }
+
+  function updateSim() {
+    drawOverlay();
+    const sim = $('sim');
+    const n = cur.n;
+    if (n.kind === 'base') {
+      sim.innerHTML = 'Base card: Maker claims the ringed cell <b>' + fmt(cur.missing) + '</b> and completes Snaky.';
+      return;
+    }
+    const r = activeReply();
+    const kids = cur.kids;
+    if (r === null) {
+      kids.forEach((kd) => { kd.el.classList.remove('blocked', 'pick'); kd.el.querySelector('.status').textContent = '|A| ' + kd.A.size + ' · |T| ' + kd.T.size; kd.ov.innerHTML = ''; });
+      const hint = hovering !== null && !isReply(hovering)
+        ? (roleOf(hovering) === 'old' ? 'Breaker already owns <b>' + fmtK(hovering) + '</b>.' : '<b>' + fmtK(hovering) + '</b> is Maker’s once the pivot is claimed, so Breaker can’t reply there.')
+        : 'Maker claims the pivot <b>' + fmt(cur.pivot) + '</b>. Hover a cell on the board to try a Breaker reply, and click to pin it.';
+      sim.innerHTML = hint;
+      return;
+    }
+    let first = -1, alive = 0;
+    kids.forEach((kd, i) => {
+      const blocked = kd.T.has(r);
+      if (!blocked) { alive++; if (first < 0) first = i; }
+    });
+    kids.forEach((kd, i) => {
+      const blocked = kd.T.has(r);
+      kd.el.classList.toggle('blocked', blocked);
+      kd.el.classList.toggle('pick', i === first);
+      kd.el.querySelector('.status').textContent = blocked ? 'Blocked: the reply is in its envelope'
+        : i === first ? 'Survives · Maker continues here' : 'Survives';
+      const p = UK(r);
+      kd.ov.innerHTML = inBox(p, cur.bb) ? dot(p, cur.bb, 'b-reply') : '';
+    });
+    const where = cur.T.has(r) ? '' : ', outside the envelope';
+    const pinnedNote = r === pinned ? ' (pinned · Esc clears)' : '';
+    const kd = kids[first];
+    const next = kd.ch.kind === 'ref' && kd.ch.card < 6
+      ? 'completes Snaky at ' + fmt(kd.missing)
+      : 'claims ' + fmt(kd.pivot) + ' next';
+    const dead = kids.length - alive;
+    sim.innerHTML = 'Breaker replies at <b>' + fmtK(r) + '</b>' + where + pinnedNote + '. ' +
+      (dead
+        ? '<span class="bad">' + plural(dead, 'child is', 'children are') + ' blocked</span>; <b>' + alive + ' of ' + kids.length + '</b> ' + (alive === 1 ? 'survives' : 'survive')
+        : 'Every child survives') +
+      '. Maker continues with child #' + (first + 1) + ' and ' + next + '.';
+  }
+
+  // ---------- global controls ----------
+  $('prev').onclick = () => goCard(currentCard() - 1);
+  $('next').onclick = () => goCard(currentCard() + 1);
+  $('cardno').onchange = () => { const v = parseInt($('cardno').value, 10); if (!Number.isNaN(v)) goCard(v); };
+  $('scrub').oninput = () => goCard(+$('scrub').value);
+  $('crumbs').onclick = (ev) => { const b = ev.target.closest('button[data-depth]'); if (b) toDepth(+b.dataset.depth); };
+  $('refs').addEventListener('click', (ev) => { const b = ev.target.closest('button[data-card]'); if (b) goCard(+b.dataset.card); });
+  document.addEventListener('keydown', (ev) => {
+    const t = ev.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    if (ev.key === 'ArrowLeft') { ev.preventDefault(); goCard(currentCard() - 1); }
+    else if (ev.key === 'ArrowRight') { ev.preventDefault(); goCard(currentCard() + 1); }
+    else if (ev.key === 'Escape') { pinned = null; updateSim(); }
+  });
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => document.documentElement.style.setProperty('--bar-h', $('bar').offsetHeight + 'px')).observe($('bar'));
+  }
+
+  // ---------- start ----------
+  let start = 6;
+  const m = /^#c(\d+)$/.exec(location.hash || '');
+  if (m) start = +m[1];
+  else {
+    try { const v = localStorage.getItem('snaky21.card'); if (v !== null && /^\d+$/.test(v)) start = +v; } catch (e) {}
+  }
+  /*claude-only*/
+  const hot = window.claude && window.claude.hot;
+  if (hot && hot.data && typeof hot.data.card === 'number') start = hot.data.card;
+  if (hot && hot.snapshot) { try { hot.snapshot(() => ({ card: currentCard() })); } catch (e) {} }
+  /*/claude-only*/
+  goCard(start);
+
+  // ---------- self-checks, after first paint ----------
+  setTimeout(() => {
+    let replies = 0, bad = 0;
+    for (const id of model.postorder) {
+      const nd = NODES[id];
+      const ks = E.placedChildren(model, id, E.ID);
+      const own = new Set(nd.A); own.add(K(nd.pivot[0], nd.pivot[1]));
+      for (const k of nd.T) {
+        if (own.has(k)) continue;
+        replies++;
+        if (!ks.some((kd) => !kd.T.has(k))) bad++;
+      }
+      replies++;
+    }
+    const last = NODES[ROOT[LAST]];
+    const ok = bad === 0 && model.postorder.length === 1620 && last.A.size === 0 && last.T.size === 251 && last.h === 21;
+    const line = (ok ? 'Recomputed here: ' : 'Check failed: ') + ROOT.length + ' cards, ' + model.postorder.length.toLocaleString() +
+      ' combinations, ' + replies.toLocaleString() + ' Breaker reply classes, ' + (bad ? bad + ' uncovered' : 'every one leaves a child alive') +
+      '. Card 727 has empty requirement, ' + last.T.size + '-cell envelope, height ' + last.h + '.';
+    $('checks').textContent = line;
+    if (window.crypto && crypto.subtle && window.TextEncoder) {
+      crypto.subtle.digest('SHA-256', new TextEncoder().encode(CERT)).then((buf) => {
+        const hex = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+        const match = hex === '3fa12d36a6d4dbb185e3f2808c8dfde13d85ee309afbca030d6ad17ae9fe3d04';
+        $('checks').textContent = line + ' Certificate SHA-256 ' + hex.slice(0, 12) + '… ' + (match ? 'matches the paper.' : 'does NOT match the paper.');
+      }).catch(() => {});
+    }
+  }, 60);
+})();
+</script>
