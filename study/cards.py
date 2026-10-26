@@ -110,8 +110,7 @@ def combine(number, line, cards):
     A = (union_A | common_T) - {pivot}
     h = 1 + max(c['h'] for c in children)
     assert A <= T
-    return {'number': number, 'line': line, 'pivot': pivot, 'children': children,
-            'union_A': union_A, 'common_T': common_T, 'A': A, 'T': T, 'h': h}
+    return {'number': number, 'line': line, 'pivot': pivot, 'children': children, 'A': A, 'T': T, 'h': h}
 
 
 def all_cards():
@@ -225,8 +224,7 @@ def show(cards, n):
         marks, result, why = row(card, cell)
         print(f'  {str(cell):<10} {" ".join(marks)}   {result}   {why}')
     heights = ', '.join(str(c['h']) for c in card['children'])
-    print(f"\nh = 1 + max({heights}) = {card['h']}")
-    print(f"|A| = {len(card['A'])}, |T| = {len(card['T'])}\n")
+    print(f"\nh = 1 + max({heights}) = {card['h']}\n")
     print(f'card {n}:')
     print(picture(card['A'], card['T'], card['pivot']))
 
@@ -235,18 +233,11 @@ def show(cards, n):
 
 def write_web_data(cards, path):
     """cards.js holds everything index.html shows. The page draws it and computes nothing."""
-    used_by = [[] for _ in cards]
-    for card in cards:
-        for c in card['children']:
-            if card['number'] not in used_by[c['card']]:
-                used_by[c['card']].append(card['number'])
     out = []
     for card in cards:
         entry = {'n': card['number'], 'line': card['line'], 'pivot': card['pivot'], 'h': card['h'],
-                 'A': sorted(card['A']), 'T': sorted(card['T']), 'used_by': used_by[card['number']]}
+                 'A': sorted(card['A']), 'T': sorted(card['T'])}
         if card['line'] is not None:
-            entry['union_A'] = sorted(card['union_A'])
-            entry['common_T'] = sorted(card['common_T'])
             entry['rows'] = [[cell, *row(card, cell)] for cell in sorted(card['T'])]
             entry['children'] = []
             for c in card['children']:
