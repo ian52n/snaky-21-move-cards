@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Snaky Cards 0–310</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Cards 0–310 of the 21-move Snaky certificate, step by step: every placement cell by cell and rule (2) row by row, as computed by cards.py.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:wght@500;600&display=swap">
+<style>
+/* Layout: one column of steps for the open card. Step 1 places each child (stored board -> placed board);
+   step 2 combines them (three boards, then one table row per cell). Same marks and palette as the main viewer. */
+:root {
+  --bg: #edf1ee;
+  --surface: #f8faf8;
+  --fg: #17201c;
+  --muted: #55645c;
+  --rule: #d0dbd4;
+  --grid: #d3e1d8;
+  --link: #2152b5;
+  --chip: #e2e9e4;
+  /* Board marks. Cells stay white in both themes, as in the main viewer. */
+  --cell: #ffffff;
+  --cell-line: #3a423d;
+  --ink: #131615;
+  --pivot: #a3a8a5;
+  --accent: #2457c5;
+  --accent-wash: rgba(36, 87, 197, 0.22);
+  --font-display: "STIX Two Text", "STIX Two", Cambria, Georgia, serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101513; --surface: #171e1a; --fg: #e1e9e4; --muted: #94a39b; --rule: #29342e;
+    --grid: #232e28; --link: #93b2ff; --chip: #212b26; --accent: #6f98ff; --accent-wash: rgba(111, 152, 255, 0.30);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101513; --surface: #171e1a; --fg: #e1e9e4; --muted: #94a39b; --rule: #29342e;
+  --grid: #232e28; --link: #93b2ff; --chip: #212b26; --accent: #6f98ff; --accent-wash: rgba(111, 152, 255, 0.30);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+/* Card bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--rule); }
+.bar .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; padding-block: 9px; }
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand b { font-family: var(--font-display); font-size: 1.3rem; font-weight: 600; }
+.brand span { color: var(--muted); font-size: 0.82rem; }
+.pager { display: flex; align-items: center; gap: 8px; }
+.pager button { width: 38px; height: 38px; border-radius: 8px; border: 1px solid var(--rule); background: var(--bg); font-size: 1.05rem; line-height: 1; }
+.pager button:hover { border-color: var(--muted); }
+.pager button:disabled { opacity: 0.35; cursor: default; }
+.pager label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.85rem; }
+.pager input { width: 4.4em; height: 38px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--rule); background: var(--bg); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Head */
+.head { display: grid; gap: 8px; padding-block: 20px 6px; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+h1 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: clamp(1.9rem, 6vw, 2.5rem); line-height: 1.1; font-variant-numeric: lining-nums tabular-nums; }
+.line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-family: var(--font-mono); font-size: 0.95rem; }
+.line .num { color: var(--muted); }
+.line .pv { background: var(--pivot); color: #131615; border-radius: 4px; padding: 1px 6px; }
+.line button { border: 1px solid var(--rule); background: var(--surface); border-radius: 6px; padding: 1px 7px; font-family: var(--font-mono); font-size: 0.95rem; }
+.line button:hover { border-color: var(--accent); }
+.facts { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 0; font-size: 0.92rem; }
+.facts div { display: flex; gap: 6px; align-items: baseline; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-family: var(--font-mono); font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+.usedby { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; font-size: 0.86rem; color: var(--muted); }
+.chip { border: 1px solid var(--rule); background: var(--surface); border-radius: 999px; padding: 0 8px; font-family: var(--font-mono); font-size: 0.8rem; font-variant-numeric: tabular-nums; color: var(--fg); }
+.chip:hover { border-color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.8rem; color: var(--muted); }
+.legend span { display: flex; align-items: center; gap: 6px; }
+.legend svg { width: 16px; height: 16px; flex: none; }
+
+/* Steps */
+section.step { display: grid; gap: 12px; padding-block: 18px 6px; }
+h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; text-wrap: balance; }
+h2 .n { color: var(--muted); margin-right: 6px; }
+.note { margin: 0; color: var(--muted); font-size: 0.88rem; max-width: 68ch; }
+.formula { margin: 0; font-family: var(--font-mono); font-size: 0.86rem; overflow-wrap: anywhere; }
+.kids { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 430px), 1fr)); gap: 12px; }
+.kid { scroll-margin-top: 72px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px 12px; display: grid; gap: 8px; min-width: 0; }
+.kid header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.kid .ix { font-weight: 600; }
+.kid .ht { margin-left: auto; font-family: var(--font-mono); font-size: 0.82rem; color: var(--muted); }
+.open { border: 0; background: none; padding: 0; color: var(--link); font-size: 0.88rem; }
+.open:hover { text-decoration: underline; }
+.rule { margin: 0; font-family: var(--font-mono); font-size: 0.86rem; }
+/* Both boards of a pair grow in proportion to their width in cells, so they share one cell size. */
+.pair { display: flex; align-items: flex-end; gap: 6px; }
+.pair figure { margin: 0; flex-basis: 0; flex-shrink: 1; min-width: 0; display: grid; gap: 2px; }
+.pair figcaption { font-size: 0.78rem; color: var(--muted); }
+.pair .arrow { color: var(--muted); font-size: 1.1rem; align-self: center; flex: none; }
+.trace { margin: 0; min-height: 2.9em; padding: 6px 9px; border-radius: 7px; background: var(--chip); font-size: 0.84rem; }
+.trace b { font-family: var(--font-mono); font-weight: 500; }
+svg.board { display: block; width: 100%; height: auto; touch-action: manipulation; cursor: crosshair; }
+
+.combine { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.combine figure { margin: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 8px 10px 10px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.combine figcaption { font-size: 0.8rem; color: var(--muted); }
+.combine figcaption b { color: var(--fg); font-weight: 600; font-family: var(--font-mono); font-size: 0.82rem; }
+.readout { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--chip); font-size: 0.88rem; min-height: 2.6em; }
+.readout b { font-family: var(--font-mono); font-weight: 500; }
+
+/* Tables */
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; }
+table { border-collapse: collapse; font-size: 0.84rem; width: 100%; }
+th, td { padding: 4px 8px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--muted); font-size: 0.76rem; position: sticky; top: 0; background: var(--surface); }
+td.c, th.c { text-align: center; padding-inline: 3px; }
+td.cell, td.why { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+td.why { font-family: var(--font-body); white-space: normal; min-width: 14em; }
+td.res, th.res { border-left: 1px solid var(--rule); }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: var(--chip); }
+tbody tr.on td { background: var(--accent-wash); }
+.mk { display: inline-grid; place-items: center; width: 1.55em; height: 1.55em; border-radius: 3px; font-family: var(--font-mono); font-weight: 600; font-size: 0.82rem; line-height: 1; }
+.mk.X { background: var(--cell); color: var(--ink); box-shadow: inset 0 0 0 1px var(--cell-line); }
+.mk.o { background: var(--cell); color: #8a948f; box-shadow: inset 0 0 0 1px var(--cell-line); font-weight: 400; }
+.mk.P { background: var(--pivot); color: var(--ink); box-shadow: inset 0 0 0 1px var(--cell-line); }
+.mk.dot { color: var(--muted); font-weight: 400; }
+details.cells summary, details.text summary { cursor: pointer; color: var(--link); font-size: 0.86rem; width: fit-content; }
+details.cells .tablewrap { margin-top: 8px; max-height: 22em; overflow: auto; }
+details.text pre { margin: 8px 0 0; padding: 10px 12px; max-height: 34em; overflow: auto; font-family: var(--font-mono); font-size: 0.74rem; line-height: 1.35; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; }
+.basebox { max-width: 420px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 10px; }
+
+footer { border-top: 1px solid var(--rule); margin-top: 28px; padding-block: 16px 28px; font-size: 0.8rem; color: var(--muted); display: grid; gap: 4px; }
+footer a { color: var(--link); }
+
+/* Board marks */
+.b-ground { fill: var(--surface); }
+.b-grid { fill: none; stroke: var(--grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.b-env { fill: var(--cell); stroke: var(--cell-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.b-piv { fill: var(--pivot); stroke: var(--cell-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.b-x { fill: none; stroke: var(--ink); stroke-width: 0.11; stroke-linecap: round; }
+.b-ring { fill: none; stroke: var(--ink); stroke-width: 0.085; }
+.b-ppiv { fill: none; stroke: var(--accent); stroke-width: 0.12; }
+.b-penv { fill: none; stroke: var(--muted); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
+.b-axis { fill: var(--muted); font-family: var(--font-mono); font-size: 0.42px; }
+.b-focus { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.b-miss { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-dasharray: 3 2; }
+
+@media (max-width: 640px) {
+  .combine { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .combine figure.result { grid-column: 1 / -1; }
+  .combine figure.result svg { max-width: 360px; margin: 0 auto; }
+  .brand span { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="brand"><b>Snaky</b><span>cards 0–310, step by step</span></div>
+    <nav class="pager" aria-label="Card navigation">
+      <button id="prev" type="button" aria-label="Previous card">←</button>
+      <label for="cardno">Card <input id="cardno" type="number" min="0" max="310" step="1" inputmode="numeric"></label>
+      <button id="next" type="button" aria-label="Next card">→</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="head">
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="title"></h1>
+    <div class="line" id="line"></div>
+    <dl class="facts" id="facts"></dl>
+    <div class="usedby" id="usedby"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+  <div id="body"></div>
+  <details class="text" id="textwrap">
+    <summary>Show what <code>python3 cards.py <span id="textn"></span></code> prints</summary>
+    <pre id="text"></pre>
+  </details>
+</main>
+
+<footer class="wrap">
+  <div>Every cell, set and height on this page was computed by <code>cards.py</code> and saved in <code>cards.js</code>. The page only draws that data. Cards 6–310 are lines 1–305 of <code>certificate.txt</code>, Appendix D of “Snaky in 21 Maker moves” (OpenAI, 2026), used unchanged under the Apache License 2.0.</div>
+  <div>An independent study aid, not affiliated with or endorsed by OpenAI.</div>
+</footer>
+
+<script src="cards.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const LAST = CARDS.length - 1;
+  const SUB = '₀₁₂₃₄₅₆₇₈₉';
+
+  // ---------- small helpers (formatting and lookups only) ----------
+  const num = (n) => (n < 0 ? '−' + (-n) : String(n));
+  const fmt = (p) => '(' + num(p[0]) + ', ' + num(p[1]) + ')';
+  const same = (p, q) => !!p && !!q && p[0] === q[0] && p[1] === q[1];
+  const has = (list, p) => list.some((q) => same(p, q));
+  const sub = (i) => String(i).split('').map((d) => SUB[+d]).join('');
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const pretty = (s) => s.replace(/->/g, '↦').replace(/-/g, '−');
+  function markOf(p, A, T, pivot) {
+    if (same(p, pivot)) return 'P';
+    if (has(A, p)) return 'X';
+    if (has(T, p)) return 'o';
+    return '.';
+  }
+  function mk(m) { return '<span class="mk ' + (m === '.' ? 'dot' : m) + '">' + (m === '.' ? '·' : m) + '</span>'; }
+  const MARK_NAME = { X: 'required (X)', o: 'in the envelope (o)', P: 'its pivot (P)', '.': 'outside its envelope' };
+
+  // ---------- boards ----------
+  function boxOf(cells) {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const [x, y] of cells) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    return { x0: x0 - 1, x1: x1 + 1, y0: y0 - 1, y1: y1 + 1 };
+  }
+  function outline(S, bb) {
+    let d = '';
+    for (const [x, y] of S) {
+      const X = x - bb.x0, Y = bb.y1 - y;
+      if (!has(S, [x - 1, y])) d += 'M' + X + ' ' + Y + 'v1';
+      if (!has(S, [x + 1, y])) d += 'M' + (X + 1) + ' ' + Y + 'v1';
+      if (!has(S, [x, y + 1])) d += 'M' + X + ' ' + Y + 'h1';
+      if (!has(S, [x, y - 1])) d += 'M' + X + ' ' + (Y + 1) + 'h1';
+    }
+    return d;
+  }
+  // o: { bb, A, T, pivot, ring, parentPivot, parentT, frame: 'card' | 'own', child, label }
+  function board(o) {
+    const bb = o.bb, W = bb.x1 - bb.x0 + 1, H = bb.y1 - bb.y0 + 1;
+    const vb = [-1.05, -0.06, W + 1.12, H + 0.98].map((v) => +v.toFixed(2)).join(' ');
+    let s = '<svg class="board" viewBox="' + vb + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + esc(o.label) + '"'
+      + ' data-frame="' + o.frame + '" data-child="' + (o.child ?? '') + '" data-x0="' + bb.x0 + '" data-y1="' + bb.y1 + '" data-w="' + W + '" data-h="' + H + '">';
+    s += '<rect class="b-ground" x="0" y="0" width="' + W + '" height="' + H + '"/>';
+    let g = '';
+    for (let i = 0; i <= W; i++) g += 'M' + i + ' 0V' + H;
+    for (let j = 0; j <= H; j++) g += 'M0 ' + j + 'H' + W;
+    s += '<path class="b-grid" d="' + g + '"/>';
+    if (o.parentT) s += '<path class="b-penv" d="' + outline(o.parentT, bb) + '"/>';
+    let env = '';
+    for (const [x, y] of o.T) env += 'M' + (x - bb.x0) + ' ' + (bb.y1 - y) + 'h1v1h-1z';
+    s += '<path class="b-env" d="' + env + '"/>';
+    if (o.pivot) {
+      s += '<rect class="b-piv" x="' + (o.pivot[0] - bb.x0) + '" y="' + (bb.y1 - o.pivot[1]) + '" width="1" height="1"/>';
+      if (o.ring) s += '<circle class="b-ring" cx="' + (o.pivot[0] - bb.x0 + 0.5) + '" cy="' + (bb.y1 - o.pivot[1] + 0.5) + '" r="0.27"/>';
+    }
+    let xs = '';
+    for (const [x, y] of o.A) {
+      const X = x - bb.x0, Y = bb.y1 - y;
+      xs += 'M' + (X + 0.24) + ' ' + (Y + 0.24) + 'L' + (X + 0.76) + ' ' + (Y + 0.76) + 'M' + (X + 0.76) + ' ' + (Y + 0.24) + 'L' + (X + 0.24) + ' ' + (Y + 0.76);
+    }
+    s += '<path class="b-x" d="' + xs + '"/>';
+    if (o.parentPivot) s += '<rect class="b-ppiv" x="' + (o.parentPivot[0] - bb.x0 + 0.08) + '" y="' + (bb.y1 - o.parentPivot[1] + 0.08) + '" width="0.84" height="0.84"/>';
+    for (let x = bb.x0; x <= bb.x1; x++) s += '<text class="b-axis" x="' + (x - bb.x0 + 0.5) + '" y="' + (H + 0.62) + '" text-anchor="middle">' + num(x) + '</text>';
+    for (let y = bb.y0; y <= bb.y1; y++) s += '<text class="b-axis" x="-0.2" y="' + (bb.y1 - y + 0.65) + '" text-anchor="end">' + num(y) + '</text>';
+    return s + '<g class="ov"></g></svg>';
+  }
+  function swatch(inner) { return '<svg viewBox="-0.1 -0.1 1.2 1.2" aria-hidden="true">' + inner + '</svg>'; }
+  const XPATH = '<path class="b-x" d="M.24 .24L.76 .76M.76 .24L.24 .76"/>';
+  $('legend').innerHTML = [
+    [swatch('<rect class="b-env" width="1" height="1"/>' + XPATH), 'X required (A)'],
+    [swatch('<rect class="b-env" width="1" height="1"/>'), 'o envelope (T)'],
+    [swatch('<rect class="b-piv" width="1" height="1"/>'), 'P pivot'],
+    [swatch('<rect class="b-piv" width="1" height="1"/><circle class="b-ring" cx=".5" cy=".5" r=".27"/>'), 'base card: the missing cell s_j'],
+    [swatch('<rect class="b-env" width="1" height="1"/><rect class="b-ppiv" x=".08" y=".08" width=".84" height=".84"/>'), 'this card’s pivot, on other boards'],
+    [swatch('<rect class="b-ground" width="1" height="1"/><path class="b-penv" d="M0 .5H1"/>'), 'edge of this card’s envelope'],
+  ].map(([sw, t]) => '<span>' + sw + t + '</span>').join('');
+
+  // ---------- state ----------
+  let card = null;   // CARDS[n]
+  let focus = null;  // a cell in this card's coordinates
+  let miss = null;   // { i, cell }: a tapped cell of child i's stored card that is not in that card's envelope
+
+  function go(n) {
+    n = Math.max(0, Math.min(LAST, n | 0));
+    if (location.hash !== '#c' + n) location.hash = 'c' + n; else render(n);
+  }
+  function fromHash() {
+    const m = /^#c(\d+)$/.exec(location.hash);
+    render(m ? Math.min(LAST, +m[1]) : 6);
+  }
+
+  // ---------- render one card ----------
+  function render(n) {
+    card = CARDS[n]; focus = null; miss = null;
+    $('cardno').value = n; $('prev').disabled = n <= 0; $('next').disabled = n >= LAST;
+    $('title').textContent = 'Card ' + n;
+    $('textn').textContent = n;
+    $('text').textContent = card.text;
+    const isBase = card.line === null;
+    $('eyebrow').textContent = isBase ? 'Base card · Lemma 4' : 'Certificate line for card ' + n;
+
+    if (isBase) {
+      $('line').innerHTML = '<span class="note">Not in certificate.txt. Lemma 4: T = S, A = S \\ {s' + sub(n) + '}, h = 1.</span>';
+    } else {
+      const words = card.line.split(' ');
+      $('line').innerHTML = '<span class="num">' + esc(words[0]) + '</span><span class="pv" title="pivot">' + esc(words[1]) + '</span>'
+        + words.slice(2).map((w, i) => '<button type="button" data-jump="' + i + '" title="Child ' + (i + 1) + '">' + esc(w) + '</button>').join('');
+    }
+    const facts = [
+      [isBase ? 'missing cell s' + sub(n) : 'pivot p', fmt(card.pivot)],
+      ['h', String(card.h)], ['|A|', String(card.A.length)], ['|T|', String(card.T.length)],
+    ];
+    $('facts').innerHTML = facts.map(([k, v]) => '<div><dt>' + k + '</dt><dd>' + v + '</dd></div>').join('');
+    $('usedby').innerHTML = card.used_by.length
+      ? 'Used as a child by ' + card.used_by.map((j) => '<button type="button" class="chip" data-go="' + j + '">' + j + '</button>').join('')
+      : 'Not used as a child by any card up to 310.';
+
+    $('body').innerHTML = isBase ? baseHTML() : stepsHTML();
+    paint();
+  }
+
+  function baseHTML() {
+    const bb = boxOf(card.T);
+    return '<section class="step"><div class="basebox">'
+      + board({ bb, A: card.A, T: card.T, pivot: card.pivot, ring: true, frame: 'card', label: 'Base card ' + card.n })
+      + '</div><p class="note">Maker owns the five X cells of this copy of Snaky, and Breaker owns none of its six cells. '
+      + 'Claiming the ringed cell ' + fmt(card.pivot) + ' completes the copy, so the height is 1.</p>'
+      + '<p class="readout" id="readout"></p></section>';
+  }
+
+  function stepsHTML() {
+    const n = card.n, kids = card.children, bb = boxOf(card.T);
+    let s = '<section class="step"><h2><span class="n">1</span>Place each child</h2>'
+      + '<p class="note">Each child is an earlier card. Its stored cells (left) go through R_s and then the translation, which puts them in card '
+      + n + '’s coordinates (right). Tap a cell on either board, or a row in the cell list, to follow it.</p><div class="kids">';
+    const units = (b) => +(b.x1 - b.x0 + 1 + 1.12).toFixed(2); // board width in cells, axis labels included
+    kids.forEach((c, i) => {
+      const old = CARDS[c.card], ob = boxOf(old.T);
+      s += '<article class="kid" id="kid' + i + '"><header>'
+        + '<span class="ix">Child ' + (i + 1) + '</span><code>' + esc(c.word) + '</code>'
+        + '<button type="button" class="open" data-go="' + c.card + '">open card ' + c.card + ' →</button>'
+        + '<span class="ht">h = ' + c.h + '</span></header>'
+        + '<p class="rule">card ' + c.card + ', s = ' + c.s + ': ' + esc(pretty(c.rule)) + '</p>'
+        + '<div class="pair" style="max-width:' + Math.round((units(ob) + units(bb)) * 30 + 24) + 'px">'
+        + '<figure style="flex-grow:' + units(ob) + '">'
+        + board({ bb: ob, A: old.A, T: old.T, pivot: old.pivot, ring: c.card < 6, frame: 'own', child: i, label: 'Card ' + c.card + ' as stored' })
+        + '<figcaption>card ' + c.card + ' as stored</figcaption></figure>'
+        + '<span class="arrow" aria-hidden="true">→</span>'
+        + '<figure style="flex-grow:' + units(bb) + '">'
+        + board({ bb, A: c.A, T: c.T, pivot: c.pivot, ring: c.card < 6, parentPivot: card.pivot, parentT: card.T, frame: 'card', child: i, label: 'Child ' + (i + 1) + ' placed in card ' + n })
+        + '<figcaption>placed in card ' + n + '</figcaption></figure></div>'
+        + '<p class="trace" id="trace' + i + '"></p>'
+        + '<details class="cells"><summary>All ' + c.map.length + ' cells of card ' + c.card + '</summary><div class="tablewrap"><table>'
+        + '<thead><tr><th class="c">mark</th><th>stored</th><th>R' + sub(c.s) + '</th><th>+ (' + c.dx + ', ' + c.dy + ')</th></tr></thead><tbody>'
+        + c.map.map(([p, r, q], k) => '<tr data-child="' + i + '" data-k="' + k + '"><td class="c">' + mk(markOf(p, old.A, old.T, old.pivot)) + '</td>'
+          + '<td class="cell">' + fmt(p) + '</td><td class="cell">' + fmt(r) + '</td><td class="cell">' + fmt(q) + '</td></tr>').join('')
+        + '</tbody></table></div></details></article>';
+    });
+    s += '</div></section>';
+
+    const r = kids.length, idx = kids.map((_, i) => sub(i + 1));
+    const unionName = idx.map((k) => 'A' + k).join(' ∪ ');
+    const commonName = idx.map((k) => 'T' + k).join(' ∩ ');
+    s += '<section class="step"><h2><span class="n">2</span>Combine at the pivot ' + fmt(card.pivot) + '</h2>'
+      + '<p class="formula">T = {p} ∪ ' + idx.map((k) => 'T' + k).join(' ∪ ') + '<br>A = (' + unionName + ' ∪ (' + commonName + ')) \\ {p}<br>'
+      + 'h = 1 + max(' + kids.map((c) => c.h).join(', ') + ') = ' + card.h + '</p>'
+      + '<div class="combine">'
+      + '<figure><figcaption><b>' + unionName + '</b><br>cells some child requires · ' + card.union_A.length + '</figcaption>'
+      + board({ bb, A: card.union_A, T: card.union_A, parentPivot: card.pivot, parentT: card.T, frame: 'card', label: 'Union of the required sets' }) + '</figure>'
+      + '<figure><figcaption><b>' + commonName + '</b><br>cells in every child envelope · ' + card.common_T.length + '</figcaption>'
+      + board({ bb, A: [], T: card.common_T, parentPivot: card.pivot, parentT: card.T, frame: 'card', label: 'Intersection of the envelopes' }) + '</figure>'
+      + '<figure class="result"><figcaption><b>card ' + n + '</b><br>A: ' + card.A.length + ' cells · T: ' + card.T.length + ' cells · h = ' + card.h + '</figcaption>'
+      + board({ bb, A: card.A, T: card.T, pivot: card.pivot, frame: 'card', label: 'Card ' + n }) + '</figure>'
+      + '</div>'
+      + '<p class="readout" id="readout"></p>'
+      + '<p class="note">One row per cell of T. Each child column shows how that placed child marks the cell. A cell outside T has · in every column.</p>'
+      + '<div class="tablewrap"><table><thead><tr><th>cell</th>' + kids.map((_, i) => '<th class="c">' + (i + 1) + '</th>').join('')
+      + '<th class="c res">' + n + '</th><th>why</th></tr></thead><tbody>'
+      + card.rows.map(([p, marks, res, why]) => '<tr data-cell="' + p[0] + ',' + p[1] + '"><td class="cell">' + fmt(p) + '</td>'
+        + marks.split('').map((m) => '<td class="c">' + mk(m) + '</td>').join('')
+        + '<td class="c res">' + mk(res) + '</td><td class="why">' + esc(why) + '</td></tr>').join('')
+      + '</tbody></table></div></section>';
+    return s;
+  }
+
+  // ---------- focus: highlight one cell everywhere ----------
+  function rectAt(svg, p, cls) {
+    const x0 = +svg.dataset.x0, y1 = +svg.dataset.y1, W = +svg.dataset.w, H = +svg.dataset.h;
+    const X = p[0] - x0, Y = y1 - p[1];
+    if (X < 0 || Y < 0 || X >= W || Y >= H) return '';
+    return '<rect class="' + cls + '" x="' + X + '" y="' + Y + '" width="1" height="1"/>';
+  }
+  function entryFor(i) { return focus ? card.children[i].map.find((e) => same(e[2], focus)) : null; }
+
+  function paint() {
+    for (const svg of document.querySelectorAll('svg.board')) {
+      let ov = '';
+      if (svg.dataset.frame === 'card') { if (focus) ov = rectAt(svg, focus, 'b-focus'); }
+      else {
+        const i = +svg.dataset.child, e = entryFor(i);
+        if (e) ov = rectAt(svg, e[0], 'b-focus');
+        else if (miss && miss.i === i) ov = rectAt(svg, miss.cell, 'b-miss');
+      }
+      svg.querySelector('.ov').innerHTML = ov;
+    }
+    if (card.line === null) {
+      $('readout').innerHTML = focus ? '<b>' + fmt(focus) + '</b>: ' + MARK_NAME[markOf(focus, card.A, card.T, card.pivot)].replace('its pivot', 'the missing cell') : 'Tap a cell to read its coordinates.';
+      return;
+    }
+    card.children.forEach((c, i) => {
+      const e = entryFor(i), old = CARDS[c.card];
+      let t;
+      if (miss && miss.i === i) {
+        t = '<b>' + fmt(miss.cell) + '</b> is not a cell of card ' + c.card + '’s envelope, so this placement does not carry it anywhere.';
+      } else if (e) {
+        t = '<b>' + fmt(e[0]) + '</b> → R' + sub(c.s) + ' → <b>' + fmt(e[1]) + '</b> → + (' + c.dx + ', ' + c.dy + ') → <b>' + fmt(e[2]) + '</b>'
+          + '. In card ' + c.card + ' this cell is ' + MARK_NAME[markOf(e[0], old.A, old.T, old.pivot)] + '.';
+      } else if (focus) {
+        t = '<b>' + fmt(focus) + '</b> is outside this child’s envelope. No cell of card ' + c.card + ' lands there.';
+      } else {
+        t = 'Tap a cell on either board to trace it through ' + esc(pretty(c.rule)) + '.';
+      }
+      $('trace' + i).innerHTML = t;
+    });
+    for (const tr of document.querySelectorAll('tr[data-cell]')) {
+      const [x, y] = tr.dataset.cell.split(',').map(Number);
+      tr.classList.toggle('on', same([x, y], focus));
+    }
+    for (const tr of document.querySelectorAll('tr[data-child]')) {
+      const e = card.children[+tr.dataset.child].map[+tr.dataset.k];
+      tr.classList.toggle('on', same(e[2], focus));
+    }
+    const row = focus && card.rows.find((rw) => same(rw[0], focus));
+    $('readout').innerHTML = !focus ? 'Tap any cell, on any board or in the table, to see how each child marks it.'
+      : row ? '<b>' + fmt(focus) + '</b>: children ' + row[1].split('').map(mk).join(' ') + ' give card ' + card.n + ' ' + mk(row[2]) + ', ' + esc(row[3]) + '.'
+      : '<b>' + fmt(focus) + '</b> is outside card ' + card.n + '’s envelope: every child marks it ·.';
+  }
+
+  // ---------- events ----------
+  $('body').addEventListener('click', (ev) => {
+    const btn = ev.target.closest('[data-go]');
+    if (btn) { go(+btn.dataset.go); window.scrollTo({ top: 0 }); return; }
+    const tr = ev.target.closest('tr');
+    if (tr && tr.dataset.cell) { const [x, y] = tr.dataset.cell.split(',').map(Number); focus = [x, y]; miss = null; paint(); return; }
+    if (tr && tr.dataset.child) { focus = card.children[+tr.dataset.child].map[+tr.dataset.k][2]; miss = null; paint(); return; }
+    const svg = ev.target.closest('svg.board');
+    if (!svg) return;
+    const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    const q = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const X = Math.floor(q.x), Y = Math.floor(q.y);
+    if (X < 0 || Y < 0 || X >= +svg.dataset.w || Y >= +svg.dataset.h) return;
+    const p = [+svg.dataset.x0 + X, +svg.dataset.y1 - Y];
+    miss = null;
+    if (svg.dataset.frame === 'card') focus = p;
+    else {
+      const i = +svg.dataset.child, e = card.children[i].map.find((en) => same(en[0], p));
+      if (e) focus = e[2]; else { focus = null; miss = { i, cell: p }; }
+    }
+    paint();
+  });
+  $('line').addEventListener('click', (ev) => {
+    const b = ev.target.closest('button[data-jump]');
+    if (b) $('kid' + b.dataset.jump).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  $('usedby').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-go]');
+    if (b) { go(+b.dataset.go); window.scrollTo({ top: 0 }); }
+  });
+  $('prev').onclick = () => go(card.n - 1);
+  $('next').onclick = () => go(card.n + 1);
+  $('cardno').addEventListener('change', () => go(+$('cardno').value));
+  document.addEventListener('keydown', (ev) => {
+    if (ev.target.tagName === 'INPUT' || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    if (ev.key === 'ArrowLeft') go(card.n - 1);
+    if (ev.key === 'ArrowRight') go(card.n + 1);
+    if (ev.key === 'Escape') { focus = null; miss = null; paint(); }
+  });
+  window.addEventListener('hashchange', fromHash);
+  fromHash();
+})();
+</script>
+</body>
+</html>
