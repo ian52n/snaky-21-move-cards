@@ -9,9 +9,9 @@ expression), so it is left out.
 
 | File | What it is | Do you need to read it? |
 | --- | --- | --- |
-| `cards.py` | All of the math: reading a line, placing children, rule (2), drawings | Yes. Under 300 lines, standard library only; the math is in the first 150 lines. |
+| `cards.py` | All of the math: reading a line, placing children, rule (2), the cell traces, drawings | Yes. Under 250 lines, standard library only; the math is in the first 150 lines. |
 | `cards.js` | Data written by `python3 cards.py --web` | No. It is the Python's output. |
-| `index.html` | Draws `cards.js` | No. It does no geometry or set operations. |
+| `index.html` | Draws `cards.js` | No. It does no geometry or set operations, and every sentence about a cell is a line written by `trace` in `cards.py`. |
 
 ## Running the Python
 
@@ -37,9 +37,11 @@ other envelope cell (in T), and `.` is outside the envelope. y grows upward.
    `all_cards` reads certificate lines 6–310 in order.
 4. **Checks**: table (5), and cards 6 and 7, which Section 3.2 of the paper
    works out by hand.
-5. **Showing a card**: `picture` draws, `row` explains one cell of T, and `show`
+5. **Showing a card**: `picture` draws, `trace` follows one stored cell into
+   place (`X  (3, 0) -> R_7 -> (0, -3) -> + (1, 4) -> (1, 1)`), and `show`
    prints a whole card.
-6. **Data for the web page**: `write_web_data`. You can skip it.
+6. **Data for the web page**: `write_web_data` saves each card's sets, each
+   child's placed sets and its `trace` lines. It computes nothing new.
 
 ## What has been cross-checked
 

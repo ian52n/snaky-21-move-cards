@@ -11,9 +11,7 @@ a card is a triple (A, T, h): the required set A, the envelope T, the height h.
 A cell is a pair (x, y). A set of cells is a Python set of pairs.
 Only the Python standard library is used.
 """
-import contextlib
 import hashlib
-import io
 import json
 import sys
 from pathlib import Path
@@ -110,7 +108,8 @@ def combine(number, line, cards):
     A = (union_A | common_T) - {pivot}
     h = 1 + max(c['h'] for c in children)
     assert A <= T
-    return {'number': number, 'line': line, 'pivot': pivot, 'children': children, 'A': A, 'T': T, 'h': h}
+    return {'number': number, 'line': line, 'pivot': pivot, 'children': children,
+            'common_T': common_T, 'A': A, 'T': T, 'h': h}
 
 
 def all_cards():
@@ -174,25 +173,12 @@ def picture(A, T, pivot, box=None):
     return '\n'.join(rows)
 
 
-def row(card, cell):
-    """How each placed child sees one cell of T, and what rule (2) makes of it."""
-    marks = ''.join(mark(cell, c['A'], c['T']) for c in card['children'])
-    result = mark(cell, card['A'], card['T'], card['pivot'])
-    requiring = [str(i + 1) for i, m in enumerate(marks) if m == 'X']
-    missing = [str(i + 1) for i, m in enumerate(marks) if m == '.']
-    if result == 'P':
-        why = 'the pivot'
-    elif result == 'X' and requiring:
-        why = 'required by ' + children_text(requiring)
-    elif result == 'X':
-        why = 'in every child envelope'
-    else:
-        why = 'a Breaker reply here leaves ' + children_text(missing)
-    return marks, result, why
-
-
-def children_text(numbers):
-    return ('child ' if len(numbers) == 1 else 'children ') + ', '.join(numbers)
+def trace(c, old, cell):
+    """One cell of the stored card old, followed into place by child c.
+    'X  (3, 0) -> R_7 -> (0, -3) -> + (1, 4) -> (1, 1)': the letter is the cell's mark in old."""
+    s, dx, dy = c['s'], c['dx'], c['dy']
+    return (f"{mark(cell, old['A'], old['T'], old['pivot'])}  {cell} -> R_{s} -> {R(s, cell)}"
+            f" -> + ({dx}, {dy}) -> {place(cell, s, dx, dy)}")
 
 
 def show(cards, n):
@@ -215,16 +201,9 @@ def show(cards, n):
         print(picture(c['A'], c['T'], c['pivot'], box))
         print('\ncell by cell:')
         for cell in sorted(old['T']):
-            moved = place(cell, c['s'], c['dx'], c['dy'])
-            print(f"  {mark(cell, old['A'], old['T'], old['pivot'])}  {cell} -> R_{c['s']} -> {R(c['s'], cell)}"
-                  f" -> + ({c['dx']}, {c['dy']}) -> {moved}")
-    print(f'\n--- rule (2), one row per cell of T: how each placed child marks it, then card {n}')
-    print(f"  {'cell':<10} {' '.join(str(i + 1) for i in range(len(card['children'])))}   {n}")
-    for cell in sorted(card['T']):
-        marks, result, why = row(card, cell)
-        print(f'  {str(cell):<10} {" ".join(marks)}   {result}   {why}')
+            print('  ' + trace(c, old, cell))
     heights = ', '.join(str(c['h']) for c in card['children'])
-    print(f"\nh = 1 + max({heights}) = {card['h']}\n")
+    print(f"\n--- rule (2)\nh = 1 + max({heights}) = {card['h']}\n")
     print(f'card {n}:')
     print(picture(card['A'], card['T'], card['pivot']))
 
@@ -238,20 +217,17 @@ def write_web_data(cards, path):
         entry = {'n': card['number'], 'line': card['line'], 'pivot': card['pivot'], 'h': card['h'],
                  'A': sorted(card['A']), 'T': sorted(card['T'])}
         if card['line'] is not None:
-            entry['rows'] = [[cell, *row(card, cell)] for cell in sorted(card['T'])]
+            entry['common_T'] = sorted(card['common_T'])
             entry['children'] = []
             for c in card['children']:
                 old = cards[c['card']]
                 entry['children'].append({
-                    'word': c['word'], 'card': c['card'], 's': c['s'], 'dx': c['dx'], 'dy': c['dy'],
+                    'word': c['word'], 'card': c['card'], 's': c['s'], 'h': c['h'],
                     'rule': f"(x, y) -> {R_TABLE[c['s']]} + ({c['dx']}, {c['dy']})",
-                    'A': sorted(c['A']), 'T': sorted(c['T']), 'pivot': c['pivot'], 'h': c['h'],
-                    'map': [[cell, R(c['s'], cell), place(cell, c['s'], c['dx'], c['dy'])]
-                            for cell in sorted(old['T'])]})
-        printout = io.StringIO()  # the text that 'python3 cards.py N' prints, for the page to show
-        with contextlib.redirect_stdout(printout):
-            show(cards, card['number'])
-        entry['text'] = printout.getvalue()
+                    'A': sorted(c['A']), 'T': sorted(c['T']), 'pivot': c['pivot'],
+                    # one line per stored cell: where it starts, where it lands, and trace()'s text
+                    'lines': [[cell, place(cell, c['s'], c['dx'], c['dy']), trace(c, old, cell)]
+                              for cell in sorted(old['T'])]})
         out.append(entry)
     path.write_text('const CARDS = ' + json.dumps(out, separators=(',', ':')) + ';\n')
 

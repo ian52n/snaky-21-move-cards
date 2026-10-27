@@ -5,14 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Snaky Cards 0–310</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Cards 0–310 of the 21-move Snaky certificate, step by step: every placement cell by cell and rule (2) row by row, as computed by cards.py.">
+<meta name="description" content="Cards 0–310 of the 21-move Snaky certificate, step by step: every placement cell by cell, and how T and A are built, as computed by cards.py.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:wght@500;600&display=swap">
 <style>
 /* Layout: one column of steps for the open card. Step 1 places each child (stored board -> placed board);
-   step 2 builds T and A from the placed children (striped boards, then one table row per cell).
-   Each child keeps one color everywhere: its certificate word, its step 1 card, its stripes, its table column. */
+   step 2 builds T and A from the placed children (striped boards, then the card).
+   Each child keeps one color everywhere: its certificate word, its step 1 card, its stripes.
+   The page only draws cards.js. Every sentence about a cell is a trace() line from cards.py. */
 :root {
   --bg: #edf1ee;
   --surface: #f8faf8;
@@ -28,8 +29,7 @@
   --ink: #131615;
   --pivot: #a3a8a5;
   --pmark: #59615c;
-  --accent: #2457c5;
-  --accent-wash: rgba(36, 87, 197, 0.22);
+  --accent-wash: rgba(36, 87, 197, 0.16);
   /* Child colors, in certificate order. They only sit on white cells, so one set serves both themes.
      Checked for color-blind separation between neighbors and for black X marks on top. */
   --k1: #6da7ec; --k2: #f08356; --k3: #36b9a0; --k4: #e0a318; --k5: #e98bb0; --k6: #5aae3c;
@@ -43,13 +43,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #101513; --surface: #171e1a; --fg: #e1e9e4; --muted: #94a39b; --rule: #29342e;
-    --grid: #232e28; --link: #93b2ff; --chip: #212b26; --accent: #6f98ff; --accent-wash: rgba(111, 152, 255, 0.30);
+    --grid: #232e28; --link: #93b2ff; --chip: #212b26; --accent-wash: rgba(111, 152, 255, 0.24);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #101513; --surface: #171e1a; --fg: #e1e9e4; --muted: #94a39b; --rule: #29342e;
-  --grid: #232e28; --link: #93b2ff; --chip: #212b26; --accent: #6f98ff; --accent-wash: rgba(111, 152, 255, 0.30);
+  --grid: #232e28; --link: #93b2ff; --chip: #212b26; --accent-wash: rgba(111, 152, 255, 0.24);
   color-scheme: dark;
 }
 
@@ -103,7 +103,7 @@ h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 1
 h2 .n { color: var(--muted); margin-right: 6px; }
 .note { margin: 0; color: var(--muted); font-size: 0.88rem; max-width: 72ch; }
 .kids { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 430px), 1fr)); gap: 12px; }
-.kid { scroll-margin-top: 72px; background: var(--surface); border: 1px solid var(--rule); border-left: 5px solid var(--kc); border-radius: 10px; padding: 10px 12px 12px; display: grid; gap: 8px; min-width: 0; }
+.kid { scroll-margin-top: 72px; background: var(--surface); border: 1px solid var(--rule); border-left: 5px solid var(--kc); border-radius: 10px; padding: 10px 12px 12px; display: grid; gap: 8px; align-content: start; min-width: 0; }
 .kid header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .kid .ix { font-weight: 600; display: flex; align-items: center; gap: 6px; }
 .open { border: 0; background: none; padding: 0; color: var(--link); font-size: 0.88rem; margin-left: auto; }
@@ -114,9 +114,19 @@ h2 .n { color: var(--muted); margin-right: 6px; }
 .pair figure { margin: 0; flex-basis: 0; flex-shrink: 1; min-width: 0; display: grid; gap: 2px; }
 .pair figcaption { font-size: 0.78rem; color: var(--muted); }
 .pair .arrow { color: var(--muted); font-size: 1.1rem; align-self: center; flex: none; }
-.trace { margin: 0; min-height: 2.9em; padding: 6px 9px; border-radius: 7px; background: var(--chip); font-size: 0.84rem; }
-.trace b { font-family: var(--font-mono); font-weight: 500; }
+.trace { margin: 0; min-height: 2.4em; padding: 6px 9px; border-radius: 7px; background: var(--chip); font-family: var(--font-mono); font-size: 0.82rem; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.trace.idle { font-family: var(--font-body); color: var(--muted); font-size: 0.84rem; }
+.trace { flex-wrap: nowrap; }
+.trace b, .lines b { font-weight: 600; white-space: nowrap; }
+.trace i, .lines i { font-style: normal; white-space: nowrap; }
 svg.board { display: block; width: 100%; height: auto; touch-action: manipulation; cursor: crosshair; }
+
+/* The cell list: every trace() line of one child */
+details.cells summary { cursor: pointer; color: var(--link); font-size: 0.86rem; width: fit-content; }
+.lines { list-style: none; margin: 8px 0 0; padding: 4px; max-height: 20em; overflow: auto; background: var(--bg); border: 1px solid var(--rule); border-radius: 8px; font-family: var(--font-mono); font-size: 0.8rem; }
+.lines li { display: flex; align-items: center; gap: 8px; padding: 2px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
+.lines li:hover { background: var(--chip); }
+.lines li.on { background: var(--accent-wash); }
 
 .keys { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.86rem; }
 .keys span { display: flex; align-items: center; gap: 6px; }
@@ -126,36 +136,14 @@ svg.board { display: block; width: 100%; height: auto; touch-action: manipulatio
 .combine figcaption { font-size: 0.8rem; color: var(--muted); }
 .combine figcaption b { display: block; color: var(--fg); font-weight: 600; font-family: var(--font-mono); font-size: 0.84rem; margin-bottom: 2px; }
 .combine figure svg { align-self: end; }
-.readout { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--chip); font-size: 0.88rem; min-height: 2.6em; }
-.readout b { font-family: var(--font-mono); font-weight: 500; }
-
-/* Tables */
-.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; }
-table { border-collapse: collapse; font-size: 0.84rem; width: 100%; }
-th, td { padding: 4px 8px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--rule); }
-th { font-weight: 600; color: var(--muted); font-size: 0.76rem; position: sticky; top: 0; background: var(--surface); }
-th .sw { margin-right: 4px; }
-td.c, th.c { text-align: center; padding-inline: 3px; }
-td.cell, td.why { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-td.why { font-family: var(--font-body); white-space: normal; min-width: 14em; }
-td.res, th.res { border-left: 1px solid var(--rule); }
-tbody tr { cursor: pointer; }
-tbody tr:hover td { background: var(--chip); }
-tbody tr.on td { background: var(--accent-wash); }
-.mk { display: inline-grid; place-items: center; width: 1.55em; height: 1.55em; border-radius: 3px; font-family: var(--font-mono); font-weight: 600; font-size: 0.82rem; line-height: 1; }
-.mk.X { background: var(--cell); color: var(--ink); box-shadow: inset 0 0 0 1px var(--cell-line); }
-.mk.o { background: var(--cell); color: #8a948f; box-shadow: inset 0 0 0 1px var(--cell-line); font-weight: 400; }
-.mk.P { background: var(--pivot); color: var(--ink); box-shadow: inset 0 0 0 1px var(--cell-line); }
-.mk.dot { color: var(--muted); font-weight: 400; }
-.mk.kc.X, .mk.kc.o { background: var(--kc); }
-.mk.kc.o { color: #2b322e; }
-details.cells summary, details.text summary { cursor: pointer; color: var(--link); font-size: 0.86rem; width: fit-content; }
-details.cells .tablewrap { margin-top: 8px; max-height: 22em; overflow: auto; }
-details.text pre { margin: 8px 0 0; padding: 10px 12px; max-height: 34em; overflow: auto; font-family: var(--font-mono); font-size: 0.74rem; line-height: 1.35; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; }
 .basebox { max-width: 420px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 10px; }
 
-footer { border-top: 1px solid var(--rule); margin-top: 28px; padding-block: 16px 28px; font-size: 0.8rem; color: var(--muted); display: grid; gap: 4px; }
-footer a { color: var(--link); }
+.mk { display: inline-grid; place-items: center; flex: none; width: 1.55em; height: 1.55em; border-radius: 3px; font-family: var(--font-mono); font-weight: 600; font-size: 0.82rem; line-height: 1; background: var(--cell); color: var(--ink); box-shadow: inset 0 0 0 1px var(--cell-line); }
+.mk.o { color: #8a948f; font-weight: 400; }
+.mk.P { background: var(--pivot); }
+
+.run { margin: 22px 0 0; font-size: 0.86rem; color: var(--muted); }
+footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16px 28px; font-size: 0.8rem; color: var(--muted); display: grid; gap: 4px; }
 
 /* Board marks */
 .b-ground { fill: var(--surface); }
@@ -163,15 +151,14 @@ footer a { color: var(--link); }
 .b-cell { fill: var(--cell); }
 .b-edge { fill: none; stroke: var(--cell-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .b-piv { fill: var(--pivot); }
-.b-meet { fill: #c4cbc7; }
 .b-x { fill: none; stroke: var(--ink); stroke-width: 0.11; stroke-linecap: round; }
+.b-dot { fill: var(--ink); }
 .b-ring { fill: none; stroke: var(--ink); stroke-width: 0.085; }
 .b-ppiv { fill: none; stroke: var(--pmark); stroke-width: 0.12; }
 .b-penv { fill: none; stroke: var(--muted); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
 .b-axis { fill: var(--muted); font-family: var(--font-mono); font-size: 0.42px; }
 .b-halo { fill: none; stroke: #ffffff; stroke-width: 7; vector-effect: non-scaling-stroke; }
 .b-focus { fill: none; stroke: var(--ink); stroke-width: 3; vector-effect: non-scaling-stroke; }
-.b-miss { fill: none; stroke: var(--ink); stroke-width: 2.5; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
 .f0 { fill: var(--k1); } .f1 { fill: var(--k2); } .f2 { fill: var(--k3); }
 .f3 { fill: var(--k4); } .f4 { fill: var(--k5); } .f5 { fill: var(--k6); }
 
@@ -206,14 +193,11 @@ footer a { color: var(--link); }
     <div class="legend" id="legend"></div>
   </section>
   <div id="body"></div>
-  <details class="text" id="textwrap">
-    <summary>Show what <code>python3 cards.py <span id="textn"></span></code> prints</summary>
-    <pre id="text"></pre>
-  </details>
+  <p class="run">The same card as text: <code>python3 cards.py <span id="runn"></span></code></p>
 </main>
 
 <footer class="wrap">
-  <div>Every cell, set and height on this page was computed by <code>cards.py</code> and saved in <code>cards.js</code>. The page only draws that data. Cards 6–310 are lines 1–305 of <code>certificate.txt</code>, Appendix D of “Snaky in 21 Maker moves” (OpenAI, 2026), used unchanged under the Apache License 2.0.</div>
+  <div>Every set, height and cell trace on this page was computed by <code>cards.py</code> and saved in <code>cards.js</code>. The page only draws that data. Cards 6–310 are lines 1–305 of <code>certificate.txt</code>, Appendix D of “Snaky in 21 Maker moves” (OpenAI, 2026), used unchanged under the Apache License 2.0.</div>
   <div>An independent study aid, not affiliated with or endorsed by OpenAI.</div>
 </footer>
 
@@ -221,32 +205,27 @@ footer a { color: var(--link); }
 <script>
 (function () {
   'use strict';
+  // Drawing and lookups only. No geometry, set operations or rule (2) logic lives here.
   const $ = (id) => document.getElementById(id);
   const LAST = CARDS.length - 1;
   const SUB = '₀₁₂₃₄₅₆₇₈₉';
 
-  // ---------- small helpers (formatting and lookups only) ----------
+  // ---------- formatting ----------
   const num = (n) => (n < 0 ? '−' + (-n) : String(n));
   const fmt = (p) => '(' + num(p[0]) + ', ' + num(p[1]) + ')';
   const same = (p, q) => !!p && !!q && p[0] === q[0] && p[1] === q[1];
-  const has = (list, p) => list.some((q) => same(p, q));
   const sub = (i) => String(i).split('').map((d) => SUB[+d]).join('');
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const pretty = (s) => s.replace(/->/g, '↦').replace(/-/g, '−');
+  const prettyRule = (s) => esc(s.replace(/->/g, '↦').replace(/-/g, '−'));
   const kc = (i) => 'style="--kc:var(--k' + (i + 1) + ')"';   // child i's color, for HTML
   const sw = (i) => '<i class="sw" ' + kc(i) + '></i>';
-  function markOf(p, A, T, pivot) {
-    if (same(p, pivot)) return 'P';
-    if (has(A, p)) return 'X';
-    if (has(T, p)) return 'o';
-    return '.';
+  const mk = (m) => '<span class="mk ' + m + '">' + m + '</span>';
+  // A trace() line from cards.py, 'X  (3, 0) -> R_7 -> (0, -3) -> + (1, 4) -> (1, 1)', typeset.
+  function traceHTML(text) {
+    const path = esc(text.slice(3).replace(/->/g, '→')).replace(/-/g, '−').replace(/R_(\d)/g, (_, d) => 'R' + SUB[+d])
+      .replace(/(?<!\+ )\(−?\d+, −?\d+\)/g, '<b>$&</b>').replace(/\+ \(−?\d+, −?\d+\)/g, '<i>$&</i>');
+    return mk(text[0]) + '<span>' + path + '</span>';
   }
-  // A table mark. With a child index, X and o take that child's color.
-  function mk(m, i) {
-    const tint = i !== undefined && (m === 'X' || m === 'o');
-    return '<span class="mk ' + (m === '.' ? 'dot' : m) + (tint ? ' kc" ' + kc(i) : '"') + '>' + (m === '.' ? '·' : m) + '</span>';
-  }
-  const MARK_NAME = { X: 'required (X)', o: 'in the envelope (o)', P: 'its pivot (P)', '.': 'outside its envelope' };
 
   // ---------- boards ----------
   function boxOf(cells) {
@@ -254,14 +233,16 @@ footer a { color: var(--link); }
     for (const [x, y] of cells) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
     return { x0: x0 - 1, x1: x1 + 1, y0: y0 - 1, y1: y1 + 1 };
   }
+  // The dashed edge of a set of cells: the sides that have no neighbor in the set.
   function outline(S, bb) {
+    const key = new Set(S.map(([x, y]) => x + ',' + y));
     let d = '';
     for (const [x, y] of S) {
       const X = x - bb.x0, Y = bb.y1 - y;
-      if (!has(S, [x - 1, y])) d += 'M' + X + ' ' + Y + 'v1';
-      if (!has(S, [x + 1, y])) d += 'M' + (X + 1) + ' ' + Y + 'v1';
-      if (!has(S, [x, y + 1])) d += 'M' + X + ' ' + Y + 'h1';
-      if (!has(S, [x, y - 1])) d += 'M' + X + ' ' + (Y + 1) + 'h1';
+      if (!key.has((x - 1) + ',' + y)) d += 'M' + X + ' ' + Y + 'v1';
+      if (!key.has((x + 1) + ',' + y)) d += 'M' + (X + 1) + ' ' + Y + 'v1';
+      if (!key.has(x + ',' + (y + 1))) d += 'M' + X + ' ' + Y + 'h1';
+      if (!key.has(x + ',' + (y - 1))) d += 'M' + X + ' ' + (Y + 1) + 'h1';
     }
     return d;
   }
@@ -271,14 +252,14 @@ footer a { color: var(--link); }
     const w = +(1 / r).toFixed(4), off = +(i / r).toFixed(4);
     return cells.map(([x, y]) => 'M' + (x - bb.x0 + off) + ' ' + (bb.y1 - y) + 'h' + w + 'v1h-' + w + 'z').join('');
   }
-  // o: { bb, T, A, pivot, ring, fill, stripes, extra, parentPivot, parentT, frame: 'card' | 'own', child, label }
+  // o: { bb, T, A, pivot, ring, fill, stripes, dots, parentPivot, parentT, frame: 'card' | 'own', child, label }
   //   T: white cells.  fill: a child index, to color T in that child's color.
   //   stripes: one list of cells per child; each listed cell is drawn and gets that child's stripe.
-  //   extra: cells drawn gray (required only because every child envelope holds them).
+  //   dots: cells that get a corner dot.
   function board(o) {
     const bb = o.bb, W = bb.x1 - bb.x0 + 1, H = bb.y1 - bb.y0 + 1;
-    const T = o.T || [], lists = o.stripes || [], extra = o.extra || [];
-    const all = T.concat(...lists, extra, o.pivot ? [o.pivot] : []);
+    const T = o.T || [], lists = o.stripes || [], dots = o.dots || [];
+    const all = T.concat(...lists, dots, o.pivot ? [o.pivot] : []);
     const vb = [-1.05, -0.06, W + 1.12, H + 0.98].map((v) => +v.toFixed(2)).join(' ');
     let s = '<svg class="board" viewBox="' + vb + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + esc(o.label) + '"'
       + ' data-frame="' + o.frame + '" data-child="' + (o.child ?? '') + '" data-x0="' + bb.x0 + '" data-y1="' + bb.y1 + '" data-w="' + W + '" data-h="' + H + '">';
@@ -289,11 +270,8 @@ footer a { color: var(--link); }
     s += '<path class="b-grid" d="' + g + '"/>';
     if (o.parentT) s += '<path class="b-penv" d="' + outline(o.parentT, bb) + '"/>';
     s += '<path class="' + (o.fill === undefined ? 'b-cell' : 'f' + o.fill) + '" d="' + squares(T, bb) + '"/>';
-    if (lists.length) {
-      s += '<path class="b-cell" d="' + squares([].concat(...lists), bb) + '"/>';
-      lists.forEach((cells, i) => { s += '<path class="f' + i + '" d="' + stripes(cells, i, lists.length, bb) + '"/>'; });
-    }
-    if (extra.length) s += '<path class="b-meet" d="' + squares(extra, bb) + '"/>';
+    s += '<path class="b-cell" d="' + squares([].concat(...lists, dots), bb) + '"/>';
+    lists.forEach((cells, i) => { s += '<path class="f' + i + '" d="' + stripes(cells, i, lists.length, bb) + '"/>'; });
     if (o.pivot) s += '<path class="b-piv" d="' + squares([o.pivot], bb) + '"/>';
     s += '<path class="b-edge" d="' + squares(all, bb) + '"/>';
     if (o.pivot && o.ring) s += '<circle class="b-ring" cx="' + (o.pivot[0] - bb.x0 + 0.5) + '" cy="' + (bb.y1 - o.pivot[1] + 0.5) + '" r="0.27"/>';
@@ -304,26 +282,35 @@ footer a { color: var(--link); }
     }
     s += '<path class="b-x" d="' + xs + '"/>';
     if (o.parentPivot) s += '<rect class="b-ppiv" x="' + (o.parentPivot[0] - bb.x0 + 0.08) + '" y="' + (bb.y1 - o.parentPivot[1] + 0.08) + '" width="0.84" height="0.84"/>';
+    for (const [x, y] of dots) s += '<circle class="b-dot" cx="' + (x - bb.x0 + 0.5) + '" cy="' + (bb.y1 - y + 0.21) + '" r="0.07"/>';
     for (let x = bb.x0; x <= bb.x1; x++) s += '<text class="b-axis" x="' + (x - bb.x0 + 0.5) + '" y="' + (H + 0.62) + '" text-anchor="middle">' + num(x) + '</text>';
     for (let y = bb.y0; y <= bb.y1; y++) s += '<text class="b-axis" x="-0.2" y="' + (bb.y1 - y + 0.65) + '" text-anchor="end">' + num(y) + '</text>';
     return s + '<g class="ov"></g></svg>';
   }
+
+  // ---------- legend (only the marks this card's page uses) ----------
   function swatch(inner) { return '<svg viewBox="-0.1 -0.1 1.2 1.2" aria-hidden="true">' + inner + '</svg>'; }
+  const EDGE = '<rect class="b-edge" width="1" height="1"/>';
+  const CELL = '<rect class="b-cell" width="1" height="1"/>' + EDGE;
+  const PIV = '<rect class="b-piv" width="1" height="1"/>' + EDGE;
   const XPATH = '<path class="b-x" d="M.24 .24L.76 .76M.76 .24L.24 .76"/>';
-  const CELL = '<rect class="b-cell" width="1" height="1"/><rect class="b-edge" width="1" height="1"/>';
-  $('legend').innerHTML = [
-    [swatch(CELL + XPATH), 'X required (A)'],
-    [swatch(CELL), 'o envelope (T)'],
-    [swatch('<rect class="b-piv" width="1" height="1"/><rect class="b-edge" width="1" height="1"/>'), 'P pivot'],
-    [swatch('<rect class="b-piv" width="1" height="1"/><rect class="b-edge" width="1" height="1"/><circle class="b-ring" cx=".5" cy=".5" r=".27"/>'), 'base card: the missing cell s_j'],
-    [swatch(CELL + '<rect class="b-ppiv" x=".08" y=".08" width=".84" height=".84"/>'), 'this card’s pivot, on other boards'],
-    [swatch('<rect class="b-ground" width="1" height="1"/><path class="b-penv" d="M0 .5H1"/>'), 'edge of this card’s envelope'],
-  ].map(([s, t]) => '<span>' + s + t + '</span>').join('');
+  const RING = '<circle class="b-ring" cx=".5" cy=".5" r=".27"/>';
+  function legendHTML() {
+    const n = card.n, base = card.line === null;
+    const items = [[swatch(CELL + XPATH), 'X required (A)'], [swatch(CELL), 'o envelope (T)']];
+    if (base) items.push([swatch(PIV + RING), 'P pivot: the missing cell s' + sub(n)]);
+    else {
+      items.push([swatch(PIV), 'P pivot of the card drawn on that board']);
+      if (card.children.some((c) => c.card < 6)) items.push([swatch(PIV + RING), 'a base card’s pivot: its missing cell s_j']);
+      items.push([swatch(CELL + '<rect class="b-ppiv" x=".08" y=".08" width=".84" height=".84"/>'), 'card ' + n + '’s pivot p, framed on the placed-child, T and A boards']);
+      items.push([swatch('<rect class="b-ground" width="1" height="1"/><path class="b-penv" d="M0 .5H1"/>'), 'edge of card ' + n + '’s envelope, on the placed-child boards']);
+    }
+    return items.map(([s, t]) => '<span>' + s + t + '</span>').join('');
+  }
 
   // ---------- state ----------
   let card = null;   // CARDS[n]
-  let focus = null;  // a cell in this card's coordinates
-  let miss = null;   // { i, cell }: a tapped cell of child i's stored card that is not in that card's envelope
+  let focus = null;  // the highlighted cell, in this card's coordinates
 
   function go(n) {
     n = Math.max(0, Math.min(LAST, n | 0));
@@ -336,14 +323,12 @@ footer a { color: var(--link); }
 
   // ---------- render one card ----------
   function render(n) {
-    card = CARDS[n]; focus = null; miss = null;
+    card = CARDS[n]; focus = null;
     $('cardno').value = n; $('prev').disabled = n <= 0; $('next').disabled = n >= LAST;
     $('title').textContent = 'Card ' + n;
-    $('textn').textContent = n;
-    $('text').textContent = card.text;
+    $('runn').textContent = n;
     const isBase = card.line === null;
     $('eyebrow').textContent = isBase ? 'Base card · Lemma 4' : 'Certificate line for card ' + n;
-
     if (isBase) {
       $('line').innerHTML = '<span class="basenote">Not in certificate.txt. Lemma 4: T = S, A = S \\ {s' + sub(n) + '}, h = 1, where s' + sub(n) + ' = ' + fmt(card.pivot) + '.</span>';
     } else {
@@ -353,31 +338,29 @@ footer a { color: var(--link); }
         + words.slice(2).map((w, i) => '<button type="button" class="w" data-jump="' + i + '" ' + kc(i) + ' title="Go to child ' + (i + 1) + '">'
           + '<code>' + esc(w) + '</code><small>' + sw(i) + 'child ' + (i + 1) + '</small></button>').join('');
     }
+    $('legend').innerHTML = legendHTML();
     $('body').innerHTML = isBase ? baseHTML() : stepsHTML();
     paint();
   }
 
   function baseHTML() {
-    const bb = boxOf(card.T);
     return '<section class="step"><div class="basebox">'
-      + board({ bb, A: card.A, T: card.T, pivot: card.pivot, ring: true, frame: 'card', label: 'Base card ' + card.n })
-      + '</div><p class="note">Maker owns the five X cells of this copy of Snaky, and Breaker owns none of its six cells. '
-      + 'Claiming the ringed cell ' + fmt(card.pivot) + ' completes the copy, so the height is 1.</p>'
-      + '<p class="readout" id="readout"></p></section>';
+      + board({ bb: boxOf(card.T), A: card.A, T: card.T, pivot: card.pivot, ring: true, frame: 'card', label: 'Base card ' + card.n })
+      + '</div><p class="note">The six cells are a copy of S. Maker already has the X cells, so claiming the ringed cell completes it.</p></section>';
   }
 
   function stepsHTML() {
     const n = card.n, kids = card.children, bb = boxOf(card.T);
     let s = '<section class="step"><h2><span class="n">1</span>Place each child</h2>'
-      + '<p class="note">Each child is an earlier card. Its stored cells (left) go through R_s and then the translation, which puts them in card '
-      + n + '’s coordinates (right), drawn in the child’s color. Tap a cell on either board, or a row in the cell list, to follow it.</p><div class="kids">';
+      + '<p class="note">Each child is an earlier card, shown as stored (left). R_s and then the translation move it into card '
+      + n + '’s coordinates (right). Tap a cell on either board to follow it.</p><div class="kids">';
     const units = (b) => +(b.x1 - b.x0 + 1 + 1.12).toFixed(2); // board width in cells, axis labels included
     kids.forEach((c, i) => {
       const old = CARDS[c.card], ob = boxOf(old.T);
       s += '<article class="kid" id="kid' + i + '" ' + kc(i) + '><header>'
         + '<span class="ix">' + sw(i) + 'Child ' + (i + 1) + '</span><code>' + esc(c.word) + '</code>'
         + '<button type="button" class="open" data-go="' + c.card + '">open card ' + c.card + ' →</button></header>'
-        + '<p class="rule">card ' + c.card + ', s = ' + c.s + ': ' + esc(pretty(c.rule)) + '</p>'
+        + '<p class="rule">card ' + c.card + ', s = ' + c.s + ': ' + prettyRule(c.rule) + '</p>'
         + '<div class="pair" style="max-width:' + Math.round((units(ob) + units(bb)) * 30 + 24) + 'px">'
         + '<figure style="flex-grow:' + units(ob) + '">'
         + board({ bb: ob, A: old.A, T: old.T, pivot: old.pivot, ring: c.card < 6, frame: 'own', child: i, label: 'Card ' + c.card + ' as stored' })
@@ -387,104 +370,64 @@ footer a { color: var(--link); }
         + board({ bb, A: c.A, T: c.T, fill: i, pivot: c.pivot, ring: c.card < 6, parentPivot: card.pivot, parentT: card.T, frame: 'card', child: i, label: 'Child ' + (i + 1) + ' placed in card ' + n })
         + '<figcaption>placed in card ' + n + '</figcaption></figure></div>'
         + '<p class="trace" id="trace' + i + '"></p>'
-        + '<details class="cells"><summary>Cell list for card ' + c.card + '</summary><div class="tablewrap"><table>'
-        + '<thead><tr><th class="c">mark</th><th>stored</th><th>R' + sub(c.s) + '</th><th>+ (' + c.dx + ', ' + c.dy + ')</th></tr></thead><tbody>'
-        + c.map.map(([p, r, q], k) => '<tr data-child="' + i + '" data-k="' + k + '"><td class="c">' + mk(markOf(p, old.A, old.T, old.pivot)) + '</td>'
-          + '<td class="cell">' + fmt(p) + '</td><td class="cell">' + fmt(r) + '</td><td class="cell">' + fmt(q) + '</td></tr>').join('')
-        + '</tbody></table></div></details></article>';
+        + '<details class="cells"><summary>All ' + c.lines.length + ' lines for card ' + c.card + '</summary><ol class="lines">'
+        + c.lines.map((l, k) => '<li data-child="' + i + '" data-k="' + k + '">' + traceHTML(l[2]) + '</li>').join('')
+        + '</ol></details></article>';
     });
     s += '</div></section>';
 
     const idx = kids.map((_, i) => sub(i + 1));
     const Ts = idx.map((k) => 'T' + k), As = idx.map((k) => 'A' + k);
-    // Cells that rule (2) requires only because they lie in every child envelope (Python's row() found no child X).
-    const meet = card.rows.filter((rw) => rw[2] === 'X' && rw[1].indexOf('X') < 0).map((rw) => rw[0]);
     s += '<section class="step"><h2><span class="n">2</span>Build T and A at the pivot ' + fmt(card.pivot) + '</h2>'
       + '<div class="keys">' + kids.map((c, i) => '<span>' + sw(i) + 'child ' + (i + 1) + ' <code>' + esc(c.word) + '</code></span>').join('') + '</div>'
-      + '<p class="note">Each cell is split into one stripe per child, child 1 on the left. A stripe is colored when that child has the cell.</p>'
+      + '<p class="note">Each cell is split into one stripe per child, child 1 on the left.</p>'
       + '<div class="combine">'
-      + '<figure><figcaption><b>T = {p} ∪ ' + Ts.join(' ∪ ') + '</b>Colored stripe: the cell is in that child’s envelope. A cell with every stripe colored is in ' + Ts.join(' ∩ ') + '.</figcaption>'
-      + board({ bb, stripes: kids.map((c) => c.T), parentPivot: card.pivot, frame: 'card', label: 'Building T from the child envelopes' }) + '</figure>'
-      + '<figure><figcaption><b>A = (' + As.join(' ∪ ') + ' ∪ (' + Ts.join(' ∩ ') + ')) \\ {p}</b>Colored stripe: that child requires the cell. '
-      + (meet.length ? 'Gray: in every child envelope, required by no child. ' : '') + 'The framed pivot is removed, so it has no X.</figcaption>'
-      + board({ bb, stripes: kids.map((c) => c.A), extra: meet, A: card.A, parentPivot: card.pivot, parentT: card.T, frame: 'card', label: 'Building A from the required sets' }) + '</figure>'
+      + '<figure><figcaption><b>T = {p} ∪ ' + Ts.join(' ∪ ') + '</b>A stripe is colored when the cell is in that child’s envelope.</figcaption>'
+      + board({ bb, stripes: kids.map((c) => c.T), parentPivot: card.pivot, frame: 'card', label: 'T from the child envelopes' }) + '</figure>'
+      + '<figure><figcaption><b>A = (' + As.join(' ∪ ') + ' ∪ (' + Ts.join(' ∩ ') + ')) \\ {p}</b>A stripe is colored when that child requires the cell. '
+      + 'A dot marks a cell of ' + Ts.join(' ∩ ') + '. X marks A, so the framed pivot has none.</figcaption>'
+      + board({ bb, stripes: kids.map((c) => c.A), dots: card.common_T, A: card.A, parentPivot: card.pivot, frame: 'card', label: 'A from the required sets' }) + '</figure>'
       + '<figure class="result"><figcaption><b>card ' + n + '</b>h = 1 + max(' + kids.map((c) => c.h).join(', ') + ') = ' + card.h + '</figcaption>'
       + board({ bb, A: card.A, T: card.T, pivot: card.pivot, frame: 'card', label: 'Card ' + n }) + '</figure>'
-      + '</div>'
-      + (meet.length ? '' : '<p class="note">Here ' + Ts.join(' ∩ ') + ' adds no cell to A: every cell with all of its T stripes colored already has an A stripe.</p>')
-      + '<p class="readout" id="readout"></p>'
-      + '<p class="note">One row per cell of T. Each child column shows how that placed child marks the cell. A cell outside T has · in every column.</p>'
-      + '<div class="tablewrap"><table><thead><tr><th>cell</th>' + kids.map((_, i) => '<th class="c">' + sw(i) + (i + 1) + '</th>').join('')
-      + '<th class="c res">' + n + '</th><th>why</th></tr></thead><tbody>'
-      + card.rows.map(([p, marks, res, why]) => '<tr data-cell="' + p[0] + ',' + p[1] + '"><td class="cell">' + fmt(p) + '</td>'
-        + marks.split('').map((m, i) => '<td class="c">' + mk(m, i) + '</td>').join('')
-        + '<td class="c res">' + mk(res) + '</td><td class="why">' + esc(why) + '</td></tr>').join('')
-      + '</tbody></table></div></section>';
+      + '</div></section>';
     return s;
   }
 
-  // ---------- focus: highlight one cell everywhere ----------
-  function rectAt(svg, p, cls) {
-    const x0 = +svg.dataset.x0, y1 = +svg.dataset.y1, W = +svg.dataset.w, H = +svg.dataset.h;
-    const X = p[0] - x0, Y = y1 - p[1];
-    if (X < 0 || Y < 0 || X >= W || Y >= H) return '';
+  // ---------- highlight one cell everywhere ----------
+  function ringAt(svg, p) {
+    const X = p[0] - +svg.dataset.x0, Y = +svg.dataset.y1 - p[1];
+    if (X < 0 || Y < 0 || X >= +svg.dataset.w || Y >= +svg.dataset.h) return '';
     const at = ' x="' + X + '" y="' + Y + '" width="1" height="1"/>';
-    return '<rect class="b-halo"' + at + '<rect class="' + cls + '"' + at;
+    return '<rect class="b-halo"' + at + '<rect class="b-focus"' + at;
   }
-  function entryFor(i) { return focus ? card.children[i].map.find((e) => same(e[2], focus)) : null; }
+  // Child i's trace line whose cell lands on the highlighted cell, if there is one.
+  const lineFor = (i) => (focus ? card.children[i].lines.find((l) => same(l[1], focus)) : null);
 
   function paint() {
     for (const svg of document.querySelectorAll('svg.board')) {
       let ov = '';
-      if (svg.dataset.frame === 'card') { if (focus) ov = rectAt(svg, focus, 'b-focus'); }
-      else {
-        const i = +svg.dataset.child, e = entryFor(i);
-        if (e) ov = rectAt(svg, e[0], 'b-focus');
-        else if (miss && miss.i === i) ov = rectAt(svg, miss.cell, 'b-miss');
-      }
+      if (svg.dataset.frame === 'card') { if (focus) ov = ringAt(svg, focus); }
+      else { const l = lineFor(+svg.dataset.child); if (l) ov = ringAt(svg, l[0]); }
       svg.querySelector('.ov').innerHTML = ov;
     }
-    if (card.line === null) {
-      $('readout').innerHTML = focus ? '<b>' + fmt(focus) + '</b>: ' + MARK_NAME[markOf(focus, card.A, card.T, card.pivot)].replace('its pivot', 'the missing cell') : 'Tap a cell to read its coordinates.';
-      return;
-    }
+    if (card.line === null) return;
     card.children.forEach((c, i) => {
-      const e = entryFor(i), old = CARDS[c.card];
-      let t;
-      if (miss && miss.i === i) {
-        t = '<b>' + fmt(miss.cell) + '</b> is not a cell of card ' + c.card + '’s envelope, so this placement does not carry it anywhere.';
-      } else if (e) {
-        t = '<b>' + fmt(e[0]) + '</b> → R' + sub(c.s) + ' → <b>' + fmt(e[1]) + '</b> → + (' + c.dx + ', ' + c.dy + ') → <b>' + fmt(e[2]) + '</b>'
-          + '. In card ' + c.card + ' this cell is ' + MARK_NAME[markOf(e[0], old.A, old.T, old.pivot)] + '.';
-      } else if (focus) {
-        t = '<b>' + fmt(focus) + '</b> is outside this child’s envelope. No cell of card ' + c.card + ' lands there.';
-      } else {
-        t = 'Tap a cell on either board to trace it through ' + esc(pretty(c.rule)) + '.';
-      }
-      $('trace' + i).innerHTML = t;
+      const l = lineFor(i), el = $('trace' + i);
+      el.classList.toggle('idle', !l);
+      el.innerHTML = l ? traceHTML(l[2]) : focus ? 'Not on the list of lines for card ' + c.card + '.' : 'Tap a cell on either board.';
     });
-    for (const tr of document.querySelectorAll('tr[data-cell]')) {
-      const [x, y] = tr.dataset.cell.split(',').map(Number);
-      tr.classList.toggle('on', same([x, y], focus));
+    for (const li of document.querySelectorAll('li[data-child]')) {
+      li.classList.toggle('on', same(card.children[+li.dataset.child].lines[+li.dataset.k][1], focus));
     }
-    for (const tr of document.querySelectorAll('tr[data-child]')) {
-      const e = card.children[+tr.dataset.child].map[+tr.dataset.k];
-      tr.classList.toggle('on', same(e[2], focus));
-    }
-    const row = focus && card.rows.find((rw) => same(rw[0], focus));
-    $('readout').innerHTML = !focus ? 'Tap any cell, on any board or in the table, to see how each child marks it.'
-      : row ? '<b>' + fmt(focus) + '</b>: ' + row[1].split('').map((m, i) => 'child ' + (i + 1) + ' ' + mk(m, i)).join(', ')
-        + ' → card ' + card.n + ' ' + mk(row[2]) + ': ' + esc(row[3]) + '.'
-      : '<b>' + fmt(focus) + '</b> is outside card ' + card.n + '’s envelope: every child marks it ·.';
   }
+  function setFocus(p) { focus = same(p, focus) ? null : p; paint(); }
 
   // ---------- events ----------
   $('body').addEventListener('click', (ev) => {
     const btn = ev.target.closest('[data-go]');
     if (btn) { go(+btn.dataset.go); window.scrollTo({ top: 0 }); return; }
-    const tr = ev.target.closest('tr');
-    if (tr && tr.dataset.cell) { const [x, y] = tr.dataset.cell.split(',').map(Number); focus = [x, y]; miss = null; paint(); return; }
-    if (tr && tr.dataset.child) { focus = card.children[+tr.dataset.child].map[+tr.dataset.k][2]; miss = null; paint(); return; }
+    const li = ev.target.closest('li[data-child]');
+    if (li) { setFocus(card.children[+li.dataset.child].lines[+li.dataset.k][1]); return; }
     const svg = ev.target.closest('svg.board');
     if (!svg) return;
     const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
@@ -492,13 +435,9 @@ footer a { color: var(--link); }
     const X = Math.floor(q.x), Y = Math.floor(q.y);
     if (X < 0 || Y < 0 || X >= +svg.dataset.w || Y >= +svg.dataset.h) return;
     const p = [+svg.dataset.x0 + X, +svg.dataset.y1 - Y];
-    miss = null;
-    if (svg.dataset.frame === 'card') focus = p;
-    else {
-      const i = +svg.dataset.child, e = card.children[i].map.find((en) => same(en[0], p));
-      if (e) focus = e[2]; else { focus = null; miss = { i, cell: p }; }
-    }
-    paint();
+    if (svg.dataset.frame === 'card') { setFocus(p); return; }
+    const l = card.children[+svg.dataset.child].lines.find((e) => same(e[0], p)); // a stored cell: jump to where it lands
+    if (l) setFocus(l[1]); else { focus = null; paint(); }
   });
   $('line').addEventListener('click', (ev) => {
     const b = ev.target.closest('button[data-jump]');
@@ -511,7 +450,7 @@ footer a { color: var(--link); }
     if (ev.target.tagName === 'INPUT' || ev.metaKey || ev.ctrlKey || ev.altKey) return;
     if (ev.key === 'ArrowLeft') go(card.n - 1);
     if (ev.key === 'ArrowRight') go(card.n + 1);
-    if (ev.key === 'Escape') { focus = null; miss = null; paint(); }
+    if (ev.key === 'Escape') { focus = null; paint(); }
   });
   window.addEventListener('hashchange', fromHash);
   fromHash();
