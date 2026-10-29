@@ -8,7 +8,7 @@ Run it from this folder:
 
 The names follow "Snaky in 21 Maker moves" (OpenAI, 2026):
 a card is a triple (A, T, h): the required set A, the envelope T, the height h.
-A cell is a pair (x, y). A set of cells is a Python set of pairs.
+A cell is a tuple (x, y) of two ints. A set of cells is a Python set of these tuples.
 Only the Python standard library is used.
 """
 import hashlib
@@ -23,17 +23,20 @@ LAST_CARD = 310  # card 311 is the first line with parentheses (an inline expres
 SYMBOLS = '0123456789ABCDEFG'  # a coordinate digit means its position in this string
 SNAKE = [(0, 0), (1, 0), (2, 0), (3, 0), (3, 1), (4, 1)]  # the target S, equation (1): s_0 ... s_5
 
-# Table (5) of the paper, used only for printing.
+# Table (5) of the paper, used only for printing. Each entry is display text such as '(y, -x)',
+# not a cell; R() below does the actual math on tuples.
 R_TABLE = ['(x, y)', '(y, x)', '(-x, y)', '(y, -x)', '(x, -y)', '(-y, x)', '(-x, -y)', '(-y, -x)']
 
 
 # ---------------------------------------------------------------- 1. Placements
 
 def R(s, cell):
-    """R_s from Section 3.1: negate x if s has the bit 2,
+    """Transform the cell (x, y) with the signed permutation matrix R_s.
+
+    R_s from Section 3.1: negate x if s has the bit 2,
     negate y if s has the bit 4, and then swap x and y if s has the bit 1."""
     x, y = cell
-    if s & 2:
+    if s & 2:  # bitwise AND: nonzero when s has the bit 2
         x = -x
     if s & 4:
         y = -y
@@ -43,7 +46,9 @@ def R(s, cell):
 
 
 def place(cell, s, dx, dy):
-    """The placement F(cell) = R_s(cell) + (dx, dy)."""
+    """Place the cell (x, y) with the affine map F(cell) = R_s(cell) + (dx, dy).
+
+    The paper calls F the placement: first transform with R_s, then shift by (dx, dy)."""
     x, y = R(s, cell)
     return (x + dx, y + dy)
 
@@ -51,15 +56,22 @@ def place(cell, s, dx, dy):
 # ---------------------------------------------------------------- 2. Reading a line
 
 def point(word):
-    """'14' -> (1, 4).  '7A' -> (7, 10)."""
+    """Convert a two-character string to a cell, a tuple of two ints.
+
+    '14' -> (1, 4).  '7A' -> (7, 10)."""
     return (SYMBOLS.index(word[0]), SYMBOLS.index(word[1]))
 
 
 def read_line(line):
     """'6 14 4:100 5:101' -> pivot (1, 4) and two children.
 
-    A child word 'j:sUV' means card j, placed by R_s and then moved by the point UV.
-    A bare child word 'j' means card j, not moved (s = 0, UV = 00)."""
+    The pivot is a cell. Each child is a dictionary with five entries:
+    'word', 'card', 's', 'dx', 'dy'.
+
+    A child word 'j:sUV' means the image of card j under the affine map
+    cell -> R_s(cell) + (dx, dy), applied to every cell of card j,
+    where (dx, dy) = point('UV').
+    A bare child word 'j' means j:000 (s = 0, no shift)."""
     words = line.split()
     pivot = point(words[1])
     children = []
@@ -86,8 +98,12 @@ def base(j):
 def combine(number, line, cards):
     """Lemma 3, rule (2): place every child, then combine the children at the pivot."""
     pivot, children = read_line(line)
+    # cards: the list of every card finished so far; cards[n] is card n.
     for c in children:
-        old = cards[c['card']]  # an earlier card, in its own coordinates
+        # old: the earlier card this child reuses, in its own coordinates.
+        # c['card'] is that card's number (e.g. 4), so this is cards[4].
+        # old is never changed; the moved copy is stored on c below.
+        old = cards[c['card']]
         c['A'] = {place(cell, c['s'], c['dx'], c['dy']) for cell in old['A']}
         c['T'] = {place(cell, c['s'], c['dx'], c['dy']) for cell in old['T']}
         c['pivot'] = place(old['pivot'], c['s'], c['dx'], c['dy'])  # only for drawing
@@ -117,6 +133,8 @@ def all_cards():
     data = CERTIFICATE.read_bytes()
     if hashlib.sha256(data).hexdigest() != CERTIFICATE_SHA256:
         sys.exit('certificate.txt is not the file from the paper')
+    # cards: a list where position n holds card n (a dictionary with A, T, h, pivot, ...).
+    # It starts with base cards 0-5; each new card is appended, so it lands at its own number.
     cards = [base(j) for j in range(6)]
     for line in data.decode('ascii').splitlines():
         number = int(line.split()[0])
