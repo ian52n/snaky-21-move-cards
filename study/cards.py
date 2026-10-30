@@ -106,9 +106,11 @@ def combine(number, line, cards):
         old = cards[c['card']]
         c['A'] = {place(cell, c['s'], c['dx'], c['dy']) for cell in old['A']}
         c['T'] = {place(cell, c['s'], c['dx'], c['dy']) for cell in old['T']}
-        # The child's own pivot is not used: rule (2) needs only A, T and h,
-        # and a pivot is always an envelope cell (in T, not in A).
         c['h'] = old['h']
+        # Rule (2) takes only the child's A, T and h. The child's own pivot is not an input.
+        # (Every card's pivot is in its T and not in its A, so drawings show a child's pivot as o.
+        # This holds for every card, not just 0-310: Lemma 4 puts s_j in S and leaves it out of
+        # S minus s_j, and below, T starts from {pivot} and A ends with "- {pivot}".)
 
     union_A = set()  # cells that some child requires
     for c in children:

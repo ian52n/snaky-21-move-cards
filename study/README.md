@@ -11,7 +11,7 @@ expression), so it is left out.
 | --- | --- | --- |
 | `cards.py` | All of the math: reading a line, placing children, rule (2), the cell traces, drawings | Yes. Under 250 lines, standard library only; the math is in the first 150 lines. |
 | `cards.js` | Data written by `python3 cards.py --web` | No. It is the Python's output. |
-| `index.html` | Draws `cards.js` | No. It does no geometry or set operations, and every sentence about a cell is a line written by `trace` in `cards.py`. |
+| `index.html` | Draws `cards.js` | No. It does no geometry, and every sentence about a cell is a line written by `trace` in `cards.py`. Its only set work is step 2, where buttons pick which children and which terms of A go into rule (2). With every button on, the page checks its T, ⋂Tᵢ and A against `cards.py`. |
 
 ## Running the Python
 
@@ -25,8 +25,9 @@ python3 cards.py --web    # rewrite cards.js after you change cards.py
 
 In the drawings, `X` is a required cell (in A), `P` is the pivot, `o` is any
 other envelope cell (in T), and `.` is outside the envelope. y grows upward.
-Only the card being shown gets a `P`. Rule (2) never uses a child's pivot,
-which is always one of the child's envelope cells, so children show it as `o`.
+Only the card being shown gets a `P`. Rule (2) never uses a child's pivot.
+Every card's pivot is in its T and not in its A (Lemma 4 and rule (2) both
+make it so), so children show it as `o`.
 
 ## Reading order for `cards.py`
 

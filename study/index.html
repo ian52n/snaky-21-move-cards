@@ -11,11 +11,13 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:wght@500;600&display=swap">
 <style>
 /* Layout: one column of steps for the open card. Step 1 places each child (stored board -> placed board);
-   step 2 builds T and A from the placed children (one button per child picks which are drawn, then the card).
+   step 2 builds T, the intersection of the children's envelopes, and A, then shows the card.
+   Buttons pick the children and A's last two terms.
    Every board uses the same marks for card n and its children: white cell = envelope, X = required,
    frame = card n's pivot p, dashed line = edge of card n's envelope.
    Each child keeps one color for its certificate word, its step 1 panel and its step 2 button.
-   The page only draws cards.js. Every sentence about a cell is a trace() line from cards.py. */
+   The page draws cards.js. Its only set work is step 2, which it checks against cards.py.
+   Every sentence about a cell is a trace() line from cards.py. */
 :root {
   --bg: #edf1ee;
   --surface: #f8faf8;
@@ -31,6 +33,7 @@
   --ink: #131615;
   --pmark: #66706a;  /* p's frame: readable on white cells and on the dark ground */
   --accent-wash: rgba(36, 87, 197, 0.16);
+  --warn: #b3261e;
   /* Child colors, in certificate order. They mark a child's word, panel and button, never board cells. */
   --k1: #6da7ec; --k2: #f08356; --k3: #36b9a0; --k4: #e0a318; --k5: #e98bb0; --k6: #5aae3c;
   --font-display: "STIX Two Text", "STIX Two", Cambria, Georgia, serif;
@@ -44,12 +47,14 @@
   :root:not([data-theme="light"]) {
     --bg: #101513; --surface: #171e1a; --fg: #e1e9e4; --muted: #94a39b; --rule: #29342e;
     --grid: #232e28; --link: #93b2ff; --chip: #212b26; --accent-wash: rgba(111, 152, 255, 0.24);
+    --warn: #ff8a80;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #101513; --surface: #171e1a; --fg: #e1e9e4; --muted: #94a39b; --rule: #29342e;
   --grid: #232e28; --link: #93b2ff; --chip: #212b26; --accent-wash: rgba(111, 152, 255, 0.24);
+  --warn: #ff8a80;
   color-scheme: dark;
 }
 
@@ -130,21 +135,22 @@ details.cells summary { cursor: pointer; color: var(--link); font-size: 0.86rem;
 .lines li:hover { background: var(--chip); }
 .lines li.on { background: var(--accent-wash); }
 
-/* Step 2: one toggle per child. On: filled swatch and colored underline. Off: hollow swatch, muted. */
+/* Step 2: one toggle per child, and two on the A board for its last two terms.
+   On: colored underline (and a filled swatch for a child). Off: muted (and a hollow swatch). */
 .togs { display: flex; flex-wrap: wrap; gap: 8px; }
 .tog { display: flex; align-items: center; gap: 7px; min-height: 38px; padding: 4px 12px; border-radius: 8px; border: 1px solid var(--rule); background: var(--bg); color: var(--muted); font-size: 0.88rem; }
 .tog code { color: inherit; }
 .tog:hover { border-color: var(--muted); }
 .tog[aria-pressed="true"] { background: var(--surface); color: var(--fg); border-color: var(--kc); box-shadow: inset 0 -3px 0 var(--kc); }
 .tog[aria-pressed="false"] .sw { background: none; box-shadow: inset 0 0 0 1.5px var(--kc); }
-.cellbtn { border: 0; background: none; padding: 1px 3px; border-radius: 4px; color: var(--link); font-family: var(--font-mono); font-size: 0.92em; }
-.cellbtn:hover { text-decoration: underline; }
-.cellbtn.on { background: var(--accent-wash); }
-.combine { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tog.term { --kc: var(--muted); min-height: 32px; padding: 2px 10px; font-size: 0.84rem; max-width: 100%; text-align: left; }
+.combine { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .combine figure { margin: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 8px 10px 10px; display: grid; gap: 6px; grid-template-rows: auto 1fr; min-width: 0; }
 .combine figcaption { font-size: 0.8rem; color: var(--muted); }
 .combine figcaption b { display: block; color: var(--fg); font-weight: 600; font-family: var(--font-mono); font-size: 0.84rem; margin-bottom: 2px; }
-.combine figure svg { align-self: end; }
+.combine figcaption .togs { margin-top: 6px; gap: 6px; }
+.combine .bd { align-self: end; }
+.note.warn { color: var(--warn); font-weight: 600; }
 .basebox { max-width: 420px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 10px; }
 
 .mk { display: inline-grid; place-items: center; flex: none; width: 1.55em; height: 1.55em; border-radius: 3px; font-family: var(--font-mono); font-weight: 600; font-size: 0.82rem; line-height: 1; background: var(--cell); color: var(--ink); box-shadow: inset 0 0 0 1px var(--cell-line); }
@@ -165,10 +171,8 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
 .b-halo { fill: none; stroke: #ffffff; stroke-width: 7; vector-effect: non-scaling-stroke; }
 .b-focus { fill: none; stroke: var(--ink); stroke-width: 3; vector-effect: non-scaling-stroke; }
 
-@media (max-width: 760px) {
+@media (max-width: 960px) {
   .combine { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .combine figure.result { grid-column: 1 / -1; }
-  .combine figure.result svg { max-width: 300px; width: 100%; margin: 0 auto; }
 }
 @media (max-width: 640px) {
   .brand span { display: none; }
@@ -200,7 +204,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
 </main>
 
 <footer class="wrap">
-  <div>Every set, height and cell trace on this page was computed by <code>cards.py</code> and saved in <code>cards.js</code>. The page only draws that data; the step 2 buttons just choose which children are drawn. Cards 6–310 are lines 1–305 of <code>certificate.txt</code>, Appendix D of “Snaky in 21 Maker moves” (OpenAI, 2026), used unchanged under the Apache License 2.0.</div>
+  <div>Every set, height and cell trace on this page was computed by <code>cards.py</code> and saved in <code>cards.js</code>. The page draws that data. Its only set work is in step 2, which redoes rule (2) for the buttons that are on; with every button on, the page checks the result against <code>cards.py</code>. Cards 6–310 are lines 1–305 of <code>certificate.txt</code>, Appendix D of “Snaky in 21 Maker moves” (OpenAI, 2026), used unchanged under the Apache License 2.0.</div>
   <div>An independent study aid, not affiliated with or endorsed by OpenAI.</div>
 </footer>
 
@@ -208,7 +212,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
 <script>
 (function () {
   'use strict';
-  // Drawing and lookups only. No geometry, set operations or rule (2) logic lives here.
+  // Drawing and lookups, plus sets() for step 2's buttons. No geometry lives here.
   const $ = (id) => document.getElementById(id);
   const LAST = CARDS.length - 1;
   const SUB = '₀₁₂₃₄₅₆₇₈₉';
@@ -293,8 +297,8 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     const items = base
       ? [[swatch(CELL + XPATH), 'X required (A)'], [swatch(CELL), 'o envelope (T)'],
          [swatch(CELL + FRAME), 'pivot p = s' + sub(n) + ', the missing cell']]
-      : [[swatch(CELL + XPATH), 'X required: in A, or in a child’s A<sub>j</sub>'],
-         [swatch(CELL), 'o envelope: in T, or in a child’s T<sub>j</sub>'],
+      : [[swatch(CELL + XPATH), 'X required cell, of card ' + n + ' or of a child'],
+         [swatch(CELL), 'o envelope cell, of card ' + n + ' or of a child'],
          [swatch(CELL + FRAME), 'card ' + n + '’s pivot p'],
          [swatch('<rect class="b-ground" width="1" height="1"/><path class="b-penv" d="M0 .5H1"/>'), 'edge of card ' + n + '’s envelope T']];
     return items.map(([s, t]) => '<span>' + s + '<span class="t">' + t + '</span></span>').join('');
@@ -303,7 +307,8 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
   // ---------- state ----------
   let card = null;   // CARDS[n]
   let focus = null;  // the highlighted cell, in this card's coordinates
-  let on = [];       // step 2: on[i] is true when child i is drawn on the T and A boards
+  let on = [];       // step 2: on[i] is true when child i goes into the boards
+  let terms = {};    // step 2: terms.cap adds the intersection to A, terms.p takes p out of A
 
   function go(n) {
     n = Math.max(0, Math.min(LAST, n | 0));
@@ -316,7 +321,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
 
   // ---------- render one card ----------
   function render(n) {
-    card = CARDS[n]; focus = null; on = (card.children || []).map(() => true);
+    card = CARDS[n]; focus = null; on = (card.children || []).map(() => true); terms = { cap: true, p: true };
     $('cardno').value = n; $('prev').disabled = n <= 0; $('next').disabled = n >= LAST;
     $('title').textContent = 'Card ' + n;
     $('runn').textContent = n;
@@ -372,37 +377,71 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     s += '</div></section>';
 
     const Ts = kids.map((_, i) => 'T' + sub(i + 1)), As = kids.map((_, i) => 'A' + sub(i + 1));
-    const cellBtn = (q) => '<button type="button" class="cellbtn" data-cell="' + q[0] + ',' + q[1] + '">' + fmt(q) + '</button>';
+    const full = sets(kids.map((_, i) => i), true, true);
+    const ok = sameSet(full.T, card.T) && sameSet(full.I, card.common_T) && sameSet(full.A, card.A);
+    const fig = (id, text, extra) => '<figure><figcaption><b id="t' + id + '"></b>' + text + (extra || '')
+      + '</figcaption><div class="bd" id="b' + id + '"></div></figure>';
     s += '<section class="step"><h2><span class="n">2</span>Build T and A at the pivot ' + fmt(card.pivot) + '</h2>'
       + '<p class="note">Rule (2): T = {p} ∪ ' + Ts.join(' ∪ ') + ' and A = (' + As.join(' ∪ ') + ' ∪ (' + Ts.join(' ∩ ') + ')) \\ {p}. '
-      + 'Turn children on and off to see what each one adds to the first two boards.</p>'
-      + '<div class="togs" role="group" aria-label="Children drawn on the T and A boards">'
+      + 'The child buttons choose which children go into the first three boards. The A board has its own buttons for its last two terms. '
+      + 'With every button on, the boards show card ' + n + '’s T and A.</p>'
+      + '<div class="togs" role="group" aria-label="Children that go into the T, intersection and A boards">'
       + kids.map((c, i) => '<button type="button" class="tog" data-tog="' + i + '" aria-pressed="true" ' + kc(i) + '>'
         + sw(i) + 'child ' + (i + 1) + ' <code>' + esc(c.word) + '</code></button>').join('') + '</div>'
-      + '<div class="combine"><figure id="figT"></figure><figure id="figA"></figure>'
-      + '<figure class="result"><figcaption><b>card ' + n + '</b>h = 1 + max(' + kids.map((c) => c.h).join(', ') + ') = ' + card.h + '</figcaption>'
-      + board({ bb, A: card.A, T: card.T, p: card.pivot, frame: 'card', label: 'Card ' + n }) + '</figure></div>'
-      + '<p class="note">To finish A: ' + Ts.join(' ∩ ') + ' = {' + card.common_T.map(cellBtn).join(', ') + '} are the cells in every child’s envelope '
-      + '(all children, whatever is on). With every child on, each of them already has an X on the ' + As.join(' ∪ ') + ' board, '
-      + 'so this term adds no cell. Then \\ {p} takes the X off p = ' + fmt(card.pivot) + ', which leaves A as drawn on the card ' + n + ' board. '
-      + 'Tap a cell in the list to find it on every board.</p></section>';
+      + '<div class="combine">'
+      + fig('T', 'p and the envelope of each child that is on. With every child on, the cells fill the dashed edge of T.')
+      + fig('I', 'The cells in the envelope of every child that is on. Turn a child on and the cells outside its envelope drop out.')
+      + fig('A', 'The required cells of each child that is on, then the two terms below.',
+        '<span class="togs" role="group" aria-label="Last two terms of A">'
+        + '<button type="button" class="tog term" data-term="cap" aria-pressed="true"></button>'
+        + '<button type="button" class="tog term" data-term="p" aria-pressed="true">\\ {p}</button></span>')
+      + '<figure class="result"><figcaption><b>card ' + n + '</b>A and T together. h = 1 + max(' + kids.map((c) => c.h).join(', ') + ') = ' + card.h + '</figcaption>'
+      + '<div class="bd">' + board({ bb, A: card.A, T: card.T, p: card.pivot, frame: 'card', label: 'Card ' + n }) + '</div></figure></div>'
+      + '<p class="note">Tap a cell on any board to ring it on every board. Step 1 then shows the line that puts it in each child.</p>'
+      + (ok ? '' : '<p class="note warn">With every button on, these boards should show the T, ' + Ts.join(' ∩ ') + ' and A that cards.py computed, '
+        + 'but for card ' + n + ' they do not. Trust cards.py.</p>')
+      + '</section>';
     return s;
   }
 
-  // Step 2's T and A boards, for the children that are on. Each child is drawn over the others,
-  // so the board shows the union of their sets; the page itself combines nothing.
+  // Rule (2) for the children listed in ids, with or without A's last two terms (cap: ∪ the intersection; minusP: \ {p}).
+  // This is the page's only set work. stepsHTML checks it against cards.py with everything on.
+  const key = (q) => q[0] + ',' + q[1];
+  const uniq = (cells) => [...new Map(cells.map((q) => [key(q), q])).values()];
+  function sameSet(a, b) {
+    const k = new Set(a.map(key));
+    return k.size === new Set(b.map(key)).size && b.every((q) => k.has(key(q)));
+  }
+  function sets(ids, cap, minusP) {
+    const kids = card.children;
+    const T = uniq([card.pivot].concat(...ids.map((i) => kids[i].T)));
+    const envs = ids.map((i) => new Set(kids[i].T.map(key)));
+    const I = ids.length ? kids[ids[0]].T.filter((q) => envs.every((e) => e.has(key(q)))) : [];
+    let A = uniq([].concat(...ids.map((i) => kids[i].A), cap ? I : []));
+    if (minusP) A = A.filter((q) => !same(q, card.pivot));
+    return { T, I, A };
+  }
+
+  // Step 2's T, intersection and A boards, for the buttons that are on.
   function buildFigs() {
     if (card.line === null) return;
     const kids = card.children, bb = boxOf(card.T), ids = kids.map((_, i) => i).filter((i) => on[i]);
-    const all = ids.length === kids.length;
-    const tT = (all ? 'T = ' : '') + ['{p}'].concat(ids.map((i) => 'T' + sub(i + 1))).join(' ∪ ');
-    const tA = ids.length ? ids.map((i) => 'A' + sub(i + 1)).join(' ∪ ') : 'no child on';
-    const Tcells = [card.pivot].concat(...ids.map((i) => kids[i].T)), Acells = [].concat(...ids.map((i) => kids[i].A));
-    $('figT').innerHTML = '<figcaption><b>' + tT + '</b>p, plus the envelope of each child that is on. With every child on, the cells fill the dashed edge of T.</figcaption>'
-      + board({ bb, T: Tcells, p: card.pivot, edge: card.T, frame: 'card', label: 'T: p and the envelopes of the children that are on' });
-    $('figA').innerHTML = '<figcaption><b>' + tA + '</b>The required cells of each child that is on. When p gets an X here, \\ {p} takes it off.</figcaption>'
-      + board({ bb, T: Acells, A: Acells, p: card.pivot, edge: card.T, frame: 'card', label: 'The required cells of the children that are on' });
+    const allKids = ids.length === kids.length, S = sets(ids, terms.cap, terms.p);
+    const Ti = ids.map((i) => 'T' + sub(i + 1)), Ai = ids.map((i) => 'A' + sub(i + 1));
+    const meet = (names) => (names.length > 1 ? '(' + names.join(' ∩ ') + ')' : names.join(''));
+    let tA = Ai.concat(terms.cap ? [meet(Ti)] : []).join(' ∪ ');
+    if (terms.p) tA = (tA.includes('∪') ? '(' + tA + ')' : tA) + ' \\ {p}';
+    $('tT').textContent = (allKids ? 'T = ' : '') + ['{p}'].concat(Ti).join(' ∪ ');
+    $('tI').textContent = ids.length ? Ti.join(' ∩ ') : 'no child on';
+    $('tA').textContent = !ids.length ? 'no child on' : (allKids && terms.cap && terms.p ? 'A = ' : '') + tA;
+    const at = { bb, p: card.pivot, edge: card.T, frame: 'card' };
+    $('bT').innerHTML = board({ ...at, T: S.T, label: 'p and the envelopes of the children that are on' });
+    $('bI').innerHTML = board({ ...at, T: S.I, label: 'The cells in the envelope of every child that is on' });
+    $('bA').innerHTML = board({ ...at, T: S.A, A: S.A, label: 'A for the children and terms that are on' });
     for (const b of document.querySelectorAll('[data-tog]')) b.setAttribute('aria-pressed', String(on[+b.dataset.tog]));
+    for (const b of document.querySelectorAll('[data-term]')) b.setAttribute('aria-pressed', String(terms[b.dataset.term]));
+    // The cap button names the intersection of the children that are on (of all of them when none is on).
+    document.querySelector('[data-term="cap"]').textContent = '∪ ' + meet(ids.length ? Ti : kids.map((_, i) => 'T' + sub(i + 1)));
   }
 
   // ---------- highlight one cell everywhere ----------
@@ -431,7 +470,6 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     for (const li of document.querySelectorAll('li[data-child]')) {
       li.classList.toggle('on', same(card.children[+li.dataset.child].lines[+li.dataset.k][1], focus));
     }
-    for (const b of document.querySelectorAll('[data-cell]')) b.classList.toggle('on', same(b.dataset.cell.split(',').map(Number), focus));
   }
   function setFocus(p) { focus = same(p, focus) ? null : p; paint(); }
 
@@ -441,8 +479,8 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     if (btn) { go(+btn.dataset.go); window.scrollTo({ top: 0 }); return; }
     const tog = ev.target.closest('[data-tog]');
     if (tog) { on[+tog.dataset.tog] = !on[+tog.dataset.tog]; buildFigs(); paint(); return; }
-    const cb = ev.target.closest('[data-cell]');
-    if (cb) { setFocus(cb.dataset.cell.split(',').map(Number)); return; }
+    const term = ev.target.closest('[data-term]');
+    if (term) { terms[term.dataset.term] = !terms[term.dataset.term]; buildFigs(); paint(); return; }
     const li = ev.target.closest('li[data-child]');
     if (li) { setFocus(card.children[+li.dataset.child].lines[+li.dataset.k][1]); return; }
     const svg = ev.target.closest('svg.board');
