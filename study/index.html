@@ -16,7 +16,7 @@
    Every board uses the same marks for card n and its children: white cell = envelope, X = required,
    frame = card n's pivot p, dashed line = edge of card n's envelope.
    Each child keeps one color for its certificate word, its step 1 panel and its step 2 button.
-   The page draws cards.js. Its only set work is step 2, which it checks against cards.py.
+   The page only draws cards.js: cards.py computed every set, including rule (2) for every choice of buttons.
    Every sentence about a cell is a trace() line from cards.py. */
 :root {
   --bg: #edf1ee;
@@ -33,7 +33,6 @@
   --ink: #131615;
   --pmark: #66706a;  /* p's frame: readable on white cells and on the dark ground */
   --accent-wash: rgba(36, 87, 197, 0.16);
-  --warn: #b3261e;
   /* Child colors, in certificate order. They mark a child's word, panel and button, never board cells. */
   --k1: #6da7ec; --k2: #f08356; --k3: #36b9a0; --k4: #e0a318; --k5: #e98bb0; --k6: #5aae3c;
   --font-display: "STIX Two Text", "STIX Two", Cambria, Georgia, serif;
@@ -47,14 +46,12 @@
   :root:not([data-theme="light"]) {
     --bg: #101513; --surface: #171e1a; --fg: #e1e9e4; --muted: #94a39b; --rule: #29342e;
     --grid: #232e28; --link: #93b2ff; --chip: #212b26; --accent-wash: rgba(111, 152, 255, 0.24);
-    --warn: #ff8a80;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #101513; --surface: #171e1a; --fg: #e1e9e4; --muted: #94a39b; --rule: #29342e;
   --grid: #232e28; --link: #93b2ff; --chip: #212b26; --accent-wash: rgba(111, 152, 255, 0.24);
-  --warn: #ff8a80;
   color-scheme: dark;
 }
 
@@ -150,7 +147,6 @@ details.cells summary { cursor: pointer; color: var(--link); font-size: 0.86rem;
 .combine figcaption b { display: block; color: var(--fg); font-weight: 600; font-family: var(--font-mono); font-size: 0.84rem; margin-bottom: 2px; }
 .combine figcaption .togs { margin-top: 6px; gap: 6px; }
 .combine .bd { align-self: end; }
-.note.warn { color: var(--warn); font-weight: 600; }
 .basebox { max-width: 420px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 10px; }
 
 .mk { display: inline-grid; place-items: center; flex: none; width: 1.55em; height: 1.55em; border-radius: 3px; font-family: var(--font-mono); font-weight: 600; font-size: 0.82rem; line-height: 1; background: var(--cell); color: var(--ink); box-shadow: inset 0 0 0 1px var(--cell-line); }
@@ -204,15 +200,15 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
 </main>
 
 <footer class="wrap">
-  <div>Every set, height and cell trace on this page was computed by <code>cards.py</code> and saved in <code>cards.js</code>. The page draws that data. Its only set work is in step 2, which redoes rule (2) for the buttons that are on; with every button on, the page checks the result against <code>cards.py</code>. Cards 6–310 are lines 1–305 of <code>certificate.txt</code>, Appendix D of “Snaky in 21 Maker moves” (OpenAI, 2026), used unchanged under the Apache License 2.0.</div>
+  <div>Every set, height and cell trace on this page was computed by <code>cards.py</code> and saved in <code>cards.js</code>. The page only draws that data. For the step 2 buttons, <code>cards.py</code> ran rule (2) on every choice of children, and the page draws the one you pick. Cards 6–310 are lines 1–305 of <code>certificate.txt</code>, Appendix D of “Snaky in 21 Maker moves” (OpenAI, 2026), used unchanged under the Apache License 2.0.</div>
   <div>An independent study aid, not affiliated with or endorsed by OpenAI.</div>
 </footer>
 
-<script src="cards.js"></script>
+<script src="cards.js?v=rule2"></script><!-- change v when cards.js changes shape, so browsers drop a cached copy -->
 <script>
 (function () {
   'use strict';
-  // Drawing and lookups, plus sets() for step 2's buttons. No geometry lives here.
+  // Drawing and lookups only. No geometry, set operations or rule (2) logic lives here.
   const $ = (id) => document.getElementById(id);
   const LAST = CARDS.length - 1;
   const SUB = '₀₁₂₃₄₅₆₇₈₉';
@@ -259,7 +255,6 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
   //   T: envelope cells, drawn white.  A: required cells, which get an X (list them in T too).
   //   p: card n's pivot, drawn as a frame on top, so the cell's own mark stays visible.
   //   edge: card n's envelope, drawn as a dashed edge.
-  // A cell listed more than once is just drawn again, so overlapping lists show their union.
   function board(o) {
     const bb = o.bb, W = bb.x1 - bb.x0 + 1, H = bb.y1 - bb.y0 + 1;
     const T = o.T || [];
@@ -377,8 +372,6 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     s += '</div></section>';
 
     const Ts = kids.map((_, i) => 'T' + sub(i + 1)), As = kids.map((_, i) => 'A' + sub(i + 1));
-    const full = sets(kids.map((_, i) => i), true, true);
-    const ok = sameSet(full.T, card.T) && sameSet(full.I, card.common_T) && sameSet(full.A, card.A);
     const fig = (id, text, extra) => '<figure><figcaption><b id="t' + id + '"></b>' + text + (extra || '')
       + '</figcaption><div class="bd" id="b' + id + '"></div></figure>';
     s += '<section class="step"><h2><span class="n">2</span>Build T and A at the pivot ' + fmt(card.pivot) + '</h2>'
@@ -398,35 +391,21 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
       + '<figure class="result"><figcaption><b>card ' + n + '</b>A and T together. h = 1 + max(' + kids.map((c) => c.h).join(', ') + ') = ' + card.h + '</figcaption>'
       + '<div class="bd">' + board({ bb, A: card.A, T: card.T, p: card.pivot, frame: 'card', label: 'Card ' + n }) + '</div></figure></div>'
       + '<p class="note">Tap a cell on any board to ring it on every board. Step 1 then shows the line that puts it in each child.</p>'
-      + (ok ? '' : '<p class="note warn">With every button on, these boards should show the T, ' + Ts.join(' ∩ ') + ' and A that cards.py computed, '
-        + 'but for card ' + n + ' they do not. Trust cards.py.</p>')
       + '</section>';
     return s;
   }
 
-  // Rule (2) for the children listed in ids, with or without A's last two terms (cap: ∪ the intersection; minusP: \ {p}).
-  // This is the page's only set work. stepsHTML checks it against cards.py with everything on.
-  const key = (q) => q[0] + ',' + q[1];
-  const uniq = (cells) => [...new Map(cells.map((q) => [key(q), q])).values()];
-  function sameSet(a, b) {
-    const k = new Set(a.map(key));
-    return k.size === new Set(b.map(key)).size && b.every((q) => k.has(key(q)));
-  }
-  function sets(ids, cap, minusP) {
-    const kids = card.children;
-    const T = uniq([card.pivot].concat(...ids.map((i) => kids[i].T)));
-    const envs = ids.map((i) => new Set(kids[i].T.map(key)));
-    const I = ids.length ? kids[ids[0]].T.filter((q) => envs.every((e) => e.has(key(q)))) : [];
-    let A = uniq([].concat(...ids.map((i) => kids[i].A), cap ? I : []));
-    if (minusP) A = A.filter((q) => !same(q, card.pivot));
-    return { T, I, A };
-  }
-
-  // Step 2's T, intersection and A boards, for the buttons that are on.
+  // Step 2's T, intersection and A boards, for the buttons that are on. cards.py ran rule (2) for every
+  // choice of children (card.rule2[m - 1], where bit i of m is child i), so the page only picks lists to draw.
   function buildFigs() {
     if (card.line === null) return;
     const kids = card.children, bb = boxOf(card.T), ids = kids.map((_, i) => i).filter((i) => on[i]);
-    const allKids = ids.length === kids.length, S = sets(ids, terms.cap, terms.p);
+    const allKids = ids.length === kids.length;
+    const m = ids.reduce((sum, i) => sum + 2 ** i, 0), R = m ? card.rule2[m - 1] : null;
+    let aKey = terms.cap ? 'union_A | common_T' : 'union_A';
+    if (terms.p) aKey = (terms.cap ? '(' + aKey + ')' : aKey) + ' - {p}';
+    // With no child on there is nothing to combine: T shows p alone, the other two boards are empty.
+    const S = R ? { T: R.T, I: R.common_T, A: R.A[aKey] } : { T: [card.pivot], I: [], A: [] };
     const Ti = ids.map((i) => 'T' + sub(i + 1)), Ai = ids.map((i) => 'A' + sub(i + 1));
     const meet = (names) => (names.length > 1 ? '(' + names.join(' ∩ ') + ')' : names.join(''));
     let tA = Ai.concat(terms.cap ? [meet(Ti)] : []).join(' ∪ ');

@@ -95,23 +95,10 @@ def base(j):
             'A': set(SNAKE) - {SNAKE[j]}, 'T': set(SNAKE), 'h': 1}
 
 
-def combine(number, line, cards):
-    """Lemma 3, rule (2): place every child, then combine the children at the pivot."""
-    pivot, children = read_line(line)
-    # cards: the list of every card finished so far; cards[n] is card n.
-    for c in children:
-        # old: the earlier card this child reuses, in its own coordinates.
-        # c['card'] is that card's number (e.g. 4), so this is cards[4].
-        # old is never changed; the moved copy is stored on c below.
-        old = cards[c['card']]
-        c['A'] = {place(cell, c['s'], c['dx'], c['dy']) for cell in old['A']}
-        c['T'] = {place(cell, c['s'], c['dx'], c['dy']) for cell in old['T']}
-        c['h'] = old['h']
-        # Rule (2) takes only the child's A, T and h. The child's own pivot is not an input.
-        # (Every card's pivot is in its T and not in its A, so drawings show a child's pivot as o.
-        # This holds for every card, not just 0-310: Lemma 4 puts s_j in S and leaves it out of
-        # S minus s_j, and below, T starts from {pivot} and A ends with "- {pivot}".)
-
+def rule2(pivot, children):
+    """Lemma 3, rule (2), for a list of placed children:
+    T = {p} ∪ ⋃T_j and A = (⋃A_j ∪ ⋂T_j) minus p.
+    Returns the two terms as well as T and A, so the web page can show each one."""
     union_A = set()  # cells that some child requires
     for c in children:
         union_A = union_A | c['A']
@@ -125,6 +112,27 @@ def combine(number, line, cards):
         T = T | c['T']
 
     A = (union_A | common_T) - {pivot}
+    return union_A, common_T, T, A
+
+
+def combine(number, line, cards):
+    """Lemma 3: place every child, then combine the children at the pivot with rule (2)."""
+    pivot, children = read_line(line)
+    # cards: the list of every card finished so far; cards[n] is card n.
+    for c in children:
+        # old: the earlier card this child reuses, in its own coordinates.
+        # c['card'] is that card's number (e.g. 4), so this is cards[4].
+        # old is never changed; the moved copy is stored on c below.
+        old = cards[c['card']]
+        c['A'] = {place(cell, c['s'], c['dx'], c['dy']) for cell in old['A']}
+        c['T'] = {place(cell, c['s'], c['dx'], c['dy']) for cell in old['T']}
+        c['h'] = old['h']
+        # Rule (2) takes only the child's A, T and h. The child's own pivot is not an input.
+        # (Every card's pivot is in its T and not in its A, so drawings show a child's pivot as o.
+        # This holds for every card, not just 0-310: Lemma 4 puts s_j in S and leaves it out of
+        # S minus s_j, and in rule2, T starts from {pivot} and A ends with "- {pivot}".)
+
+    union_A, common_T, T, A = rule2(pivot, children)
     h = 1 + max(c['h'] for c in children)
     assert A <= T
     return {'number': number, 'line': line, 'pivot': pivot, 'children': children,
@@ -233,6 +241,29 @@ def show(cards, n):
 
 # ---------------------------------------------------------------- 6. Data for the web page
 
+def rule2_for_each_choice(card):
+    """Rule (2) for every nonempty choice of card's children, for the buttons in step 2 of index.html.
+
+    Child i is in choice m when bit i of m is set; m = 2**k - 1 chooses all k children.
+    Entry m - 1 holds that choice's T, its intersection common_T, and A four ways,
+    with and without the term common_T and with and without '- {p}'.
+    The page only picks one of these lists to draw."""
+    p, kids = card['pivot'], card['children']
+    out = []
+    for m in range(1, 2 ** len(kids)):
+        chosen = [c for i, c in enumerate(kids) if m & (1 << i)]
+        union_A, common_T, T, A = rule2(p, chosen)
+        out.append({'T': sorted(T), 'common_T': sorted(common_T), 'A': {
+            'union_A': sorted(union_A),
+            'union_A | common_T': sorted(union_A | common_T),
+            'union_A - {p}': sorted(union_A - {p}),
+            '(union_A | common_T) - {p}': sorted(A)}})
+    # Choosing every child gives the card itself.
+    assert out[-1]['T'] == sorted(card['T']) and out[-1]['A']['(union_A | common_T) - {p}'] == sorted(card['A'])
+    assert out[-1]['common_T'] == sorted(card['common_T'])
+    return out
+
+
 def write_web_data(cards, path):
     """cards.js holds everything index.html shows. The page draws it and computes nothing."""
     out = []
@@ -240,7 +271,6 @@ def write_web_data(cards, path):
         entry = {'n': card['number'], 'line': card['line'], 'pivot': card['pivot'], 'h': card['h'],
                  'A': sorted(card['A']), 'T': sorted(card['T'])}
         if card['line'] is not None:
-            entry['common_T'] = sorted(card['common_T'])
             entry['children'] = []
             for c in card['children']:
                 old = cards[c['card']]
@@ -251,6 +281,7 @@ def write_web_data(cards, path):
                     # one line per stored cell: where it starts, where it lands, and trace()'s text
                     'lines': [[cell, place(cell, c['s'], c['dx'], c['dy']), trace(c, old, cell)]
                               for cell in sorted(old['T'])]})
+            entry['rule2'] = rule2_for_each_choice(card)
         out.append(entry)
     path.write_text('const CARDS = ' + json.dumps(out, separators=(',', ':')) + ';\n')
 
