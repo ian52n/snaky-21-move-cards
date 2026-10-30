@@ -11,8 +11,10 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:wght@500;600&display=swap">
 <style>
 /* Layout: one column of steps for the open card. Step 1 places each child (stored board -> placed board);
-   step 2 builds T and A from the placed children (striped boards, then the card).
-   Each child keeps one color everywhere: its certificate word, its step 1 card, its stripes.
+   step 2 builds T and A from the placed children (one button per child picks which are drawn, then the card).
+   Every board uses the same marks for card n and its children: white cell = envelope, X = required,
+   frame = card n's pivot p, dashed line = edge of card n's envelope.
+   Each child keeps one color for its certificate word, its step 1 panel and its step 2 button.
    The page only draws cards.js. Every sentence about a cell is a trace() line from cards.py. */
 :root {
   --bg: #edf1ee;
@@ -27,11 +29,9 @@
   --cell: #ffffff;
   --cell-line: #3a423d;
   --ink: #131615;
-  --pivot: #a3a8a5;
-  --pmark: #59615c;
+  --pmark: #66706a;  /* p's frame: readable on white cells and on the dark ground */
   --accent-wash: rgba(36, 87, 197, 0.16);
-  /* Child colors, in certificate order. They only sit on white cells, so one set serves both themes.
-     Checked for color-blind separation between neighbors and for black X marks on top. */
+  /* Child colors, in certificate order. They mark a child's word, panel and button, never board cells. */
   --k1: #6da7ec; --k2: #f08356; --k3: #36b9a0; --k4: #e0a318; --k5: #e98bb0; --k6: #5aae3c;
   --font-display: "STIX Two Text", "STIX Two", Cambria, Georgia, serif;
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -89,13 +89,15 @@ h1 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: c
 .line .w { display: grid; justify-items: start; gap: 3px; border: 0; background: none; padding: 0; text-align: left; }
 .line .w code { font-size: 1rem; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--rule); background: var(--surface); }
 .line .w small { display: flex; align-items: center; gap: 5px; font-size: 0.74rem; color: var(--muted); white-space: nowrap; }
-.line .w.pv code { background: var(--pivot); border-color: var(--pivot); color: var(--ink); }
+.line .w.pv code { border-color: var(--pmark); box-shadow: inset 0 0 0 1px var(--pmark); }
 .line button.w code { border-color: var(--kc); box-shadow: inset 0 -3px 0 var(--kc); }
 .line button.w:hover code { background: var(--chip); }
 .line .basenote { color: var(--muted); font-size: 0.9rem; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.8rem; color: var(--muted); }
 .legend span { display: flex; align-items: center; gap: 6px; }
 .legend svg { width: 16px; height: 16px; flex: none; }
+.legend .t { display: inline; }
+.legend sub { line-height: 0; }
 
 /* Steps */
 section.step { display: grid; gap: 12px; padding-block: 18px 6px; }
@@ -128,9 +130,16 @@ details.cells summary { cursor: pointer; color: var(--link); font-size: 0.86rem;
 .lines li:hover { background: var(--chip); }
 .lines li.on { background: var(--accent-wash); }
 
-.keys { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.86rem; }
-.keys span { display: flex; align-items: center; gap: 6px; }
-.keys code { color: var(--muted); }
+/* Step 2: one toggle per child. On: filled swatch and colored underline. Off: hollow swatch, muted. */
+.togs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tog { display: flex; align-items: center; gap: 7px; min-height: 38px; padding: 4px 12px; border-radius: 8px; border: 1px solid var(--rule); background: var(--bg); color: var(--muted); font-size: 0.88rem; }
+.tog code { color: inherit; }
+.tog:hover { border-color: var(--muted); }
+.tog[aria-pressed="true"] { background: var(--surface); color: var(--fg); border-color: var(--kc); box-shadow: inset 0 -3px 0 var(--kc); }
+.tog[aria-pressed="false"] .sw { background: none; box-shadow: inset 0 0 0 1.5px var(--kc); }
+.cellbtn { border: 0; background: none; padding: 1px 3px; border-radius: 4px; color: var(--link); font-family: var(--font-mono); font-size: 0.92em; }
+.cellbtn:hover { text-decoration: underline; }
+.cellbtn.on { background: var(--accent-wash); }
 .combine { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .combine figure { margin: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 8px 10px 10px; display: grid; gap: 6px; grid-template-rows: auto 1fr; min-width: 0; }
 .combine figcaption { font-size: 0.8rem; color: var(--muted); }
@@ -140,7 +149,6 @@ details.cells summary { cursor: pointer; color: var(--link); font-size: 0.86rem;
 
 .mk { display: inline-grid; place-items: center; flex: none; width: 1.55em; height: 1.55em; border-radius: 3px; font-family: var(--font-mono); font-weight: 600; font-size: 0.82rem; line-height: 1; background: var(--cell); color: var(--ink); box-shadow: inset 0 0 0 1px var(--cell-line); }
 .mk.o { color: #8a948f; font-weight: 400; }
-.mk.P { background: var(--pivot); }
 
 .run { margin: 22px 0 0; font-size: 0.86rem; color: var(--muted); }
 footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16px 28px; font-size: 0.8rem; color: var(--muted); display: grid; gap: 4px; }
@@ -150,17 +158,12 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
 .b-grid { fill: none; stroke: var(--grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .b-cell { fill: var(--cell); }
 .b-edge { fill: none; stroke: var(--cell-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.b-piv { fill: var(--pivot); }
 .b-x { fill: none; stroke: var(--ink); stroke-width: 0.11; stroke-linecap: round; }
-.b-dot { fill: var(--ink); }
-.b-ring { fill: none; stroke: var(--ink); stroke-width: 0.085; }
-.b-ppiv { fill: none; stroke: var(--pmark); stroke-width: 0.12; }
+.b-p { fill: none; stroke: var(--pmark); stroke-width: 0.12; }
 .b-penv { fill: none; stroke: var(--muted); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
 .b-axis { fill: var(--muted); font-family: var(--font-mono); font-size: 0.42px; }
 .b-halo { fill: none; stroke: #ffffff; stroke-width: 7; vector-effect: non-scaling-stroke; }
 .b-focus { fill: none; stroke: var(--ink); stroke-width: 3; vector-effect: non-scaling-stroke; }
-.f0 { fill: var(--k1); } .f1 { fill: var(--k2); } .f2 { fill: var(--k3); }
-.f3 { fill: var(--k4); } .f4 { fill: var(--k5); } .f5 { fill: var(--k6); }
 
 @media (max-width: 760px) {
   .combine { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -197,7 +200,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
 </main>
 
 <footer class="wrap">
-  <div>Every set, height and cell trace on this page was computed by <code>cards.py</code> and saved in <code>cards.js</code>. The page only draws that data. Cards 6–310 are lines 1–305 of <code>certificate.txt</code>, Appendix D of “Snaky in 21 Maker moves” (OpenAI, 2026), used unchanged under the Apache License 2.0.</div>
+  <div>Every set, height and cell trace on this page was computed by <code>cards.py</code> and saved in <code>cards.js</code>. The page only draws that data; the step 2 buttons just choose which children are drawn. Cards 6–310 are lines 1–305 of <code>certificate.txt</code>, Appendix D of “Snaky in 21 Maker moves” (OpenAI, 2026), used unchanged under the Apache License 2.0.</div>
   <div>An independent study aid, not affiliated with or endorsed by OpenAI.</div>
 </footer>
 
@@ -247,19 +250,15 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     return d;
   }
   const squares = (cells, bb) => cells.map(([x, y]) => 'M' + (x - bb.x0) + ' ' + (bb.y1 - y) + 'h1v1h-1z').join('');
-  // Stripe i of r in each cell: the left-to-right slot for child i.
-  function stripes(cells, i, r, bb) {
-    const w = +(1 / r).toFixed(4), off = +(i / r).toFixed(4);
-    return cells.map(([x, y]) => 'M' + (x - bb.x0 + off) + ' ' + (bb.y1 - y) + 'h' + w + 'v1h-' + w + 'z').join('');
-  }
-  // o: { bb, T, A, pivot, ring, fill, stripes, dots, parentPivot, parentT, frame: 'card' | 'own', child, label }
-  //   T: white cells.  fill: a child index, to color T in that child's color.
-  //   stripes: one list of cells per child; each listed cell is drawn and gets that child's stripe.
-  //   dots: cells that get a corner dot.
+  // One set of marks for every board, whether it shows card n or a child:
+  // o: { bb, T, A, p, edge, frame: 'card' | 'own', child, label }
+  //   T: envelope cells, drawn white.  A: required cells, which get an X (list them in T too).
+  //   p: card n's pivot, drawn as a frame on top, so the cell's own mark stays visible.
+  //   edge: card n's envelope, drawn as a dashed edge.
+  // A cell listed more than once is just drawn again, so overlapping lists show their union.
   function board(o) {
     const bb = o.bb, W = bb.x1 - bb.x0 + 1, H = bb.y1 - bb.y0 + 1;
-    const T = o.T || [], lists = o.stripes || [], dots = o.dots || [];
-    const all = T.concat(...lists, dots, o.pivot ? [o.pivot] : []);
+    const T = o.T || [];
     const vb = [-1.05, -0.06, W + 1.12, H + 0.98].map((v) => +v.toFixed(2)).join(' ');
     let s = '<svg class="board" viewBox="' + vb + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + esc(o.label) + '"'
       + ' data-frame="' + o.frame + '" data-child="' + (o.child ?? '') + '" data-x0="' + bb.x0 + '" data-y1="' + bb.y1 + '" data-w="' + W + '" data-h="' + H + '">';
@@ -268,21 +267,16 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     for (let i = 0; i <= W; i++) g += 'M' + i + ' 0V' + H;
     for (let j = 0; j <= H; j++) g += 'M0 ' + j + 'H' + W;
     s += '<path class="b-grid" d="' + g + '"/>';
-    if (o.parentT) s += '<path class="b-penv" d="' + outline(o.parentT, bb) + '"/>';
-    s += '<path class="' + (o.fill === undefined ? 'b-cell' : 'f' + o.fill) + '" d="' + squares(T, bb) + '"/>';
-    s += '<path class="b-cell" d="' + squares([].concat(...lists, dots), bb) + '"/>';
-    lists.forEach((cells, i) => { s += '<path class="f' + i + '" d="' + stripes(cells, i, lists.length, bb) + '"/>'; });
-    if (o.pivot) s += '<path class="b-piv" d="' + squares([o.pivot], bb) + '"/>';
-    s += '<path class="b-edge" d="' + squares(all, bb) + '"/>';
-    if (o.pivot && o.ring) s += '<circle class="b-ring" cx="' + (o.pivot[0] - bb.x0 + 0.5) + '" cy="' + (bb.y1 - o.pivot[1] + 0.5) + '" r="0.27"/>';
+    if (o.edge) s += '<path class="b-penv" d="' + outline(o.edge, bb) + '"/>';
+    s += '<path class="b-cell" d="' + squares(T, bb) + '"/>';
+    s += '<path class="b-edge" d="' + squares(T, bb) + '"/>';
     let xs = '';
     for (const [x, y] of o.A || []) {
       const X = x - bb.x0, Y = bb.y1 - y;
       xs += 'M' + (X + 0.24) + ' ' + (Y + 0.24) + 'L' + (X + 0.76) + ' ' + (Y + 0.76) + 'M' + (X + 0.76) + ' ' + (Y + 0.24) + 'L' + (X + 0.24) + ' ' + (Y + 0.76);
     }
     s += '<path class="b-x" d="' + xs + '"/>';
-    if (o.parentPivot) s += '<rect class="b-ppiv" x="' + (o.parentPivot[0] - bb.x0 + 0.08) + '" y="' + (bb.y1 - o.parentPivot[1] + 0.08) + '" width="0.84" height="0.84"/>';
-    for (const [x, y] of dots) s += '<circle class="b-dot" cx="' + (x - bb.x0 + 0.5) + '" cy="' + (bb.y1 - y + 0.21) + '" r="0.07"/>';
+    if (o.p) s += '<rect class="b-p" x="' + (o.p[0] - bb.x0 + 0.08) + '" y="' + (bb.y1 - o.p[1] + 0.08) + '" width="0.84" height="0.84"/>';
     for (let x = bb.x0; x <= bb.x1; x++) s += '<text class="b-axis" x="' + (x - bb.x0 + 0.5) + '" y="' + (H + 0.62) + '" text-anchor="middle">' + num(x) + '</text>';
     for (let y = bb.y0; y <= bb.y1; y++) s += '<text class="b-axis" x="-0.2" y="' + (bb.y1 - y + 0.65) + '" text-anchor="end">' + num(y) + '</text>';
     return s + '<g class="ov"></g></svg>';
@@ -292,25 +286,24 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
   function swatch(inner) { return '<svg viewBox="-0.1 -0.1 1.2 1.2" aria-hidden="true">' + inner + '</svg>'; }
   const EDGE = '<rect class="b-edge" width="1" height="1"/>';
   const CELL = '<rect class="b-cell" width="1" height="1"/>' + EDGE;
-  const PIV = '<rect class="b-piv" width="1" height="1"/>' + EDGE;
   const XPATH = '<path class="b-x" d="M.24 .24L.76 .76M.76 .24L.24 .76"/>';
-  const RING = '<circle class="b-ring" cx=".5" cy=".5" r=".27"/>';
+  const FRAME = '<rect class="b-p" x=".08" y=".08" width=".84" height=".84"/>';
   function legendHTML() {
     const n = card.n, base = card.line === null;
-    const items = [[swatch(CELL + XPATH), 'X required (A)'], [swatch(CELL), 'o envelope (T)']];
-    if (base) items.push([swatch(PIV + RING), 'P pivot: the missing cell s' + sub(n)]);
-    else {
-      items.push([swatch(PIV), 'P pivot of the card drawn on that board']);
-      if (card.children.some((c) => c.card < 6)) items.push([swatch(PIV + RING), 'a base card’s pivot: its missing cell s_j']);
-      items.push([swatch(CELL + '<rect class="b-ppiv" x=".08" y=".08" width=".84" height=".84"/>'), 'card ' + n + '’s pivot p, framed on the placed-child, T and A boards']);
-      items.push([swatch('<rect class="b-ground" width="1" height="1"/><path class="b-penv" d="M0 .5H1"/>'), 'edge of card ' + n + '’s envelope, on the placed-child boards']);
-    }
-    return items.map(([s, t]) => '<span>' + s + t + '</span>').join('');
+    const items = base
+      ? [[swatch(CELL + XPATH), 'X required (A)'], [swatch(CELL), 'o envelope (T)'],
+         [swatch(CELL + FRAME), 'pivot p = s' + sub(n) + ', the missing cell']]
+      : [[swatch(CELL + XPATH), 'X required: in A, or in a child’s A<sub>j</sub>'],
+         [swatch(CELL), 'o envelope: in T, or in a child’s T<sub>j</sub>'],
+         [swatch(CELL + FRAME), 'card ' + n + '’s pivot p'],
+         [swatch('<rect class="b-ground" width="1" height="1"/><path class="b-penv" d="M0 .5H1"/>'), 'edge of card ' + n + '’s envelope T']];
+    return items.map(([s, t]) => '<span>' + s + '<span class="t">' + t + '</span></span>').join('');
   }
 
   // ---------- state ----------
   let card = null;   // CARDS[n]
   let focus = null;  // the highlighted cell, in this card's coordinates
+  let on = [];       // step 2: on[i] is true when child i is drawn on the T and A boards
 
   function go(n) {
     n = Math.max(0, Math.min(LAST, n | 0));
@@ -323,7 +316,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
 
   // ---------- render one card ----------
   function render(n) {
-    card = CARDS[n]; focus = null;
+    card = CARDS[n]; focus = null; on = (card.children || []).map(() => true);
     $('cardno').value = n; $('prev').disabled = n <= 0; $('next').disabled = n >= LAST;
     $('title').textContent = 'Card ' + n;
     $('runn').textContent = n;
@@ -340,20 +333,22 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     }
     $('legend').innerHTML = legendHTML();
     $('body').innerHTML = isBase ? baseHTML() : stepsHTML();
+    buildFigs();
     paint();
   }
 
   function baseHTML() {
     return '<section class="step"><div class="basebox">'
-      + board({ bb: boxOf(card.T), A: card.A, T: card.T, pivot: card.pivot, ring: true, frame: 'card', label: 'Base card ' + card.n })
-      + '</div><p class="note">The six cells are a copy of S. Maker already has the X cells, so claiming the ringed cell completes it.</p></section>';
+      + board({ bb: boxOf(card.T), A: card.A, T: card.T, p: card.pivot, frame: 'card', label: 'Base card ' + card.n })
+      + '</div><p class="note">The six cells are a copy of S. Maker already has the X cells, so claiming the framed cell p completes it.</p></section>';
   }
 
   function stepsHTML() {
     const n = card.n, kids = card.children, bb = boxOf(card.T);
     let s = '<section class="step"><h2><span class="n">1</span>Place each child</h2>'
       + '<p class="note">Each child is an earlier card, shown as stored (left). R_s and then the translation move it into card '
-      + n + '’s coordinates (right). Tap a cell on either board to follow it.</p><div class="kids">';
+      + n + '’s coordinates (right). Tap a cell on either board to follow it. A child’s own pivot is not marked: '
+      + 'rule (2) uses only a child’s A, T and h, and its pivot is one of its envelope cells.</p><div class="kids">';
     const units = (b) => +(b.x1 - b.x0 + 1 + 1.12).toFixed(2); // board width in cells, axis labels included
     kids.forEach((c, i) => {
       const old = CARDS[c.card], ob = boxOf(old.T);
@@ -363,11 +358,11 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
         + '<p class="rule">card ' + c.card + ', s = ' + c.s + ': ' + prettyRule(c.rule) + '</p>'
         + '<div class="pair" style="max-width:' + Math.round((units(ob) + units(bb)) * 30 + 24) + 'px">'
         + '<figure style="flex-grow:' + units(ob) + '">'
-        + board({ bb: ob, A: old.A, T: old.T, pivot: old.pivot, ring: c.card < 6, frame: 'own', child: i, label: 'Card ' + c.card + ' as stored' })
+        + board({ bb: ob, A: old.A, T: old.T, frame: 'own', child: i, label: 'Card ' + c.card + ' as stored' })
         + '<figcaption>card ' + c.card + ' as stored</figcaption></figure>'
         + '<span class="arrow" aria-hidden="true">→</span>'
         + '<figure style="flex-grow:' + units(bb) + '">'
-        + board({ bb, A: c.A, T: c.T, fill: i, pivot: c.pivot, ring: c.card < 6, parentPivot: card.pivot, parentT: card.T, frame: 'card', child: i, label: 'Child ' + (i + 1) + ' placed in card ' + n })
+        + board({ bb, A: c.A, T: c.T, p: card.pivot, edge: card.T, frame: 'card', child: i, label: 'Child ' + (i + 1) + ' placed in card ' + n })
         + '<figcaption>placed in card ' + n + '</figcaption></figure></div>'
         + '<p class="trace" id="trace' + i + '"></p>'
         + '<details class="cells"><summary>All ' + c.lines.length + ' lines for card ' + c.card + '</summary><ol class="lines">'
@@ -376,21 +371,38 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     });
     s += '</div></section>';
 
-    const idx = kids.map((_, i) => sub(i + 1));
-    const Ts = idx.map((k) => 'T' + k), As = idx.map((k) => 'A' + k);
+    const Ts = kids.map((_, i) => 'T' + sub(i + 1)), As = kids.map((_, i) => 'A' + sub(i + 1));
+    const cellBtn = (q) => '<button type="button" class="cellbtn" data-cell="' + q[0] + ',' + q[1] + '">' + fmt(q) + '</button>';
     s += '<section class="step"><h2><span class="n">2</span>Build T and A at the pivot ' + fmt(card.pivot) + '</h2>'
-      + '<div class="keys">' + kids.map((c, i) => '<span>' + sw(i) + 'child ' + (i + 1) + ' <code>' + esc(c.word) + '</code></span>').join('') + '</div>'
-      + '<p class="note">Each cell is split into one stripe per child, child 1 on the left.</p>'
-      + '<div class="combine">'
-      + '<figure><figcaption><b>T = {p} ∪ ' + Ts.join(' ∪ ') + '</b>A stripe is colored when the cell is in that child’s envelope.</figcaption>'
-      + board({ bb, stripes: kids.map((c) => c.T), parentPivot: card.pivot, frame: 'card', label: 'T from the child envelopes' }) + '</figure>'
-      + '<figure><figcaption><b>A = (' + As.join(' ∪ ') + ' ∪ (' + Ts.join(' ∩ ') + ')) \\ {p}</b>A stripe is colored when that child requires the cell. '
-      + 'A dot marks a cell of ' + Ts.join(' ∩ ') + '. X marks A, so the framed pivot has none.</figcaption>'
-      + board({ bb, stripes: kids.map((c) => c.A), dots: card.common_T, A: card.A, parentPivot: card.pivot, frame: 'card', label: 'A from the required sets' }) + '</figure>'
+      + '<p class="note">Rule (2): T = {p} ∪ ' + Ts.join(' ∪ ') + ' and A = (' + As.join(' ∪ ') + ' ∪ (' + Ts.join(' ∩ ') + ')) \\ {p}. '
+      + 'Turn children on and off to see what each one adds to the first two boards.</p>'
+      + '<div class="togs" role="group" aria-label="Children drawn on the T and A boards">'
+      + kids.map((c, i) => '<button type="button" class="tog" data-tog="' + i + '" aria-pressed="true" ' + kc(i) + '>'
+        + sw(i) + 'child ' + (i + 1) + ' <code>' + esc(c.word) + '</code></button>').join('') + '</div>'
+      + '<div class="combine"><figure id="figT"></figure><figure id="figA"></figure>'
       + '<figure class="result"><figcaption><b>card ' + n + '</b>h = 1 + max(' + kids.map((c) => c.h).join(', ') + ') = ' + card.h + '</figcaption>'
-      + board({ bb, A: card.A, T: card.T, pivot: card.pivot, frame: 'card', label: 'Card ' + n }) + '</figure>'
-      + '</div></section>';
+      + board({ bb, A: card.A, T: card.T, p: card.pivot, frame: 'card', label: 'Card ' + n }) + '</figure></div>'
+      + '<p class="note">To finish A: ' + Ts.join(' ∩ ') + ' = {' + card.common_T.map(cellBtn).join(', ') + '} are the cells in every child’s envelope '
+      + '(all children, whatever is on). With every child on, each of them already has an X on the ' + As.join(' ∪ ') + ' board, '
+      + 'so this term adds no cell. Then \\ {p} takes the X off p = ' + fmt(card.pivot) + ', which leaves A as drawn on the card ' + n + ' board. '
+      + 'Tap a cell in the list to find it on every board.</p></section>';
     return s;
+  }
+
+  // Step 2's T and A boards, for the children that are on. Each child is drawn over the others,
+  // so the board shows the union of their sets; the page itself combines nothing.
+  function buildFigs() {
+    if (card.line === null) return;
+    const kids = card.children, bb = boxOf(card.T), ids = kids.map((_, i) => i).filter((i) => on[i]);
+    const all = ids.length === kids.length;
+    const tT = (all ? 'T = ' : '') + ['{p}'].concat(ids.map((i) => 'T' + sub(i + 1))).join(' ∪ ');
+    const tA = ids.length ? ids.map((i) => 'A' + sub(i + 1)).join(' ∪ ') : 'no child on';
+    const Tcells = [card.pivot].concat(...ids.map((i) => kids[i].T)), Acells = [].concat(...ids.map((i) => kids[i].A));
+    $('figT').innerHTML = '<figcaption><b>' + tT + '</b>p, plus the envelope of each child that is on. With every child on, the cells fill the dashed edge of T.</figcaption>'
+      + board({ bb, T: Tcells, p: card.pivot, edge: card.T, frame: 'card', label: 'T: p and the envelopes of the children that are on' });
+    $('figA').innerHTML = '<figcaption><b>' + tA + '</b>The required cells of each child that is on. When p gets an X here, \\ {p} takes it off.</figcaption>'
+      + board({ bb, T: Acells, A: Acells, p: card.pivot, edge: card.T, frame: 'card', label: 'The required cells of the children that are on' });
+    for (const b of document.querySelectorAll('[data-tog]')) b.setAttribute('aria-pressed', String(on[+b.dataset.tog]));
   }
 
   // ---------- highlight one cell everywhere ----------
@@ -419,6 +431,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     for (const li of document.querySelectorAll('li[data-child]')) {
       li.classList.toggle('on', same(card.children[+li.dataset.child].lines[+li.dataset.k][1], focus));
     }
+    for (const b of document.querySelectorAll('[data-cell]')) b.classList.toggle('on', same(b.dataset.cell.split(',').map(Number), focus));
   }
   function setFocus(p) { focus = same(p, focus) ? null : p; paint(); }
 
@@ -426,6 +439,10 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
   $('body').addEventListener('click', (ev) => {
     const btn = ev.target.closest('[data-go]');
     if (btn) { go(+btn.dataset.go); window.scrollTo({ top: 0 }); return; }
+    const tog = ev.target.closest('[data-tog]');
+    if (tog) { on[+tog.dataset.tog] = !on[+tog.dataset.tog]; buildFigs(); paint(); return; }
+    const cb = ev.target.closest('[data-cell]');
+    if (cb) { setFocus(cb.dataset.cell.split(',').map(Number)); return; }
     const li = ev.target.closest('li[data-child]');
     if (li) { setFocus(card.children[+li.dataset.child].lines[+li.dataset.k][1]); return; }
     const svg = ev.target.closest('svg.board');

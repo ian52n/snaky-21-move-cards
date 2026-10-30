@@ -25,6 +25,8 @@ python3 cards.py --web    # rewrite cards.js after you change cards.py
 
 In the drawings, `X` is a required cell (in A), `P` is the pivot, `o` is any
 other envelope cell (in T), and `.` is outside the envelope. y grows upward.
+Only the card being shown gets a `P`. Rule (2) never uses a child's pivot,
+which is always one of the child's envelope cells, so children show it as `o`.
 
 ## Reading order for `cards.py`
 

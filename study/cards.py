@@ -106,7 +106,8 @@ def combine(number, line, cards):
         old = cards[c['card']]
         c['A'] = {place(cell, c['s'], c['dx'], c['dy']) for cell in old['A']}
         c['T'] = {place(cell, c['s'], c['dx'], c['dy']) for cell in old['T']}
-        c['pivot'] = place(old['pivot'], c['s'], c['dx'], c['dy'])  # only for drawing
+        # The child's own pivot is not used: rule (2) needs only A, T and h,
+        # and a pivot is always an envelope cell (in T, not in A).
         c['h'] = old['h']
 
     union_A = set()  # cells that some child requires
@@ -181,9 +182,10 @@ def box_of(cells):
     return min(xs), max(xs), min(ys), max(ys)
 
 
-def picture(A, T, pivot, box=None):
-    """A text drawing. y grows upward, as in the paper's figures."""
-    x0, x1, y0, y1 = box or box_of(T | {pivot})
+def picture(A, T, pivot=None, box=None):
+    """A text drawing. y grows upward, as in the paper's figures.
+    Pass pivot only for the card being shown; a child's pivot is drawn as o."""
+    x0, x1, y0, y1 = box or box_of(T)  # a card's pivot is always in its T
     rows = []
     for y in range(y1, y0 - 1, -1):
         rows.append(f'{y:>4} ' + ''.join(f'{mark((x, y), A, T, pivot):>3}' for x in range(x0, x1 + 1)))
@@ -193,9 +195,10 @@ def picture(A, T, pivot, box=None):
 
 def trace(c, old, cell):
     """One cell of the stored card old, followed into place by child c.
-    'X  (3, 0) -> R_7 -> (0, -3) -> + (1, 4) -> (1, 1)': the letter is the cell's mark in old."""
+    'X  (3, 0) -> R_7 -> (0, -3) -> + (1, 4) -> (1, 1)': the letter is X if old requires the cell
+    and o if it is only in old's envelope. old's pivot gets o: rule (2) does not use it."""
     s, dx, dy = c['s'], c['dx'], c['dy']
-    return (f"{mark(cell, old['A'], old['T'], old['pivot'])}  {cell} -> R_{s} -> {R(s, cell)}"
+    return (f"{mark(cell, old['A'], old['T'])}  {cell} -> R_{s} -> {R(s, cell)}"
             f" -> + ({dx}, {dy}) -> {place(cell, s, dx, dy)}")
 
 
@@ -214,9 +217,9 @@ def show(cards, n):
         print(f"\n--- child {i + 1}: {c['word']} = card {c['card']}, s = {c['s']}, moved by ({c['dx']}, {c['dy']})")
         print(f"    (x, y) -> {R_TABLE[c['s']]} + ({c['dx']}, {c['dy']})\n")
         print(f"card {c['card']} as stored:")
-        print(picture(old['A'], old['T'], old['pivot']))
+        print(picture(old['A'], old['T']))
         print(f"\nplaced in card {n}'s coordinates:")
-        print(picture(c['A'], c['T'], c['pivot'], box))
+        print(picture(c['A'], c['T'], box=box))
         print('\ncell by cell:')
         for cell in sorted(old['T']):
             print('  ' + trace(c, old, cell))
@@ -242,7 +245,7 @@ def write_web_data(cards, path):
                 entry['children'].append({
                     'word': c['word'], 'card': c['card'], 's': c['s'], 'h': c['h'],
                     'rule': f"(x, y) -> {R_TABLE[c['s']]} + ({c['dx']}, {c['dy']})",
-                    'A': sorted(c['A']), 'T': sorted(c['T']), 'pivot': c['pivot'],
+                    'A': sorted(c['A']), 'T': sorted(c['T']),
                     # one line per stored cell: where it starts, where it lands, and trace()'s text
                     'lines': [[cell, place(cell, c['s'], c['dx'], c['dy']), trace(c, old, cell)]
                               for cell in sorted(old['T'])]})
