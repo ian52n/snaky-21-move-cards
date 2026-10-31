@@ -144,7 +144,12 @@ details.cells summary { cursor: pointer; color: var(--link); font-size: 0.86rem;
 .combine { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .combine figure { margin: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 8px 10px 10px; display: grid; gap: 6px; grid-template-rows: auto 1fr; min-width: 0; }
 .combine figcaption { font-size: 0.8rem; color: var(--muted); }
-.combine figcaption b { display: block; color: var(--fg); font-weight: 600; font-family: var(--font-mono); font-size: 0.84rem; margin-bottom: 2px; }
+.combine figcaption b { display: grid; color: var(--fg); font-weight: 600; font-family: var(--font-mono); font-size: 0.84rem; margin-bottom: 2px; }
+/* Step 2's titles and the intersection button change with the buttons. Each sits on hidden copies of its
+   longest forms, so it always takes the same room and the boards below it never move. */
+.stack { display: grid; }
+.stack > * { grid-area: 1 / 1; }
+.stack > .ghost { visibility: hidden; }
 .combine figcaption .togs { margin-top: 6px; gap: 6px; }
 .combine .bd { align-self: end; }
 .basebox { max-width: 420px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 10px; }
@@ -372,7 +377,12 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     s += '</div></section>';
 
     const Ts = kids.map((_, i) => 'T' + sub(i + 1)), As = kids.map((_, i) => 'A' + sub(i + 1));
-    const fig = (id, text, extra) => '<figure><figcaption><b id="t' + id + '"></b>' + text + (extra || '')
+    // A text that the buttons change, on hidden copies of its longest forms: every button on, and no child on.
+    // Any other choice drops some of the words of the first, so it never needs more room.
+    const full = titles(kids.map((_, i) => i), { cap: true, p: true }), none = titles([], { cap: true, p: true });
+    const sized = (key) => '<span id="t' + key + '"></span>' + [...new Set([full[key], none[key]])]
+      .map((g) => '<span class="ghost" aria-hidden="true">' + esc(g) + '</span>').join('');
+    const fig = (id, text, extra) => '<figure><figcaption><b class="stack">' + sized(id) + '</b>' + text + (extra || '')
       + '</figcaption><div class="bd" id="b' + id + '"></div></figure>';
     s += '<section class="step"><h2><span class="n">2</span>Build T and A at the pivot ' + fmt(card.pivot) + '</h2>'
       + '<p class="note">Rule (2): T = {p} ∪ ' + Ts.join(' ∪ ') + ' and A = (' + As.join(' ∪ ') + ' ∪ (' + Ts.join(' ∩ ') + ')) \\ {p}. '
@@ -386,7 +396,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
       + fig('I', 'The cells in the envelope of every child that is on. Turn a child on and the cells outside its envelope drop out.')
       + fig('A', 'The required cells of each child that is on, then the two terms below.',
         '<span class="togs" role="group" aria-label="Last two terms of A">'
-        + '<button type="button" class="tog term" data-term="cap" aria-pressed="true"></button>'
+        + '<button type="button" class="tog term" data-term="cap" aria-pressed="true"><span class="stack">' + sized('cap') + '</span></button>'
         + '<button type="button" class="tog term" data-term="p" aria-pressed="true">\\ {p}</button></span>')
       + '<figure class="result"><figcaption><b>card ' + n + '</b>A and T together. h = 1 + max(' + kids.map((c) => c.h).join(', ') + ') = ' + card.h + '</figcaption>'
       + '<div class="bd">' + board({ bb, A: card.A, T: card.T, p: card.pivot, frame: 'card', label: 'Card ' + n }) + '</div></figure></div>'
@@ -395,32 +405,40 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     return s;
   }
 
+  // Step 2's board titles and the intersection button's label, for the children in ids and the terms in t.
+  function titles(ids, t) {
+    const kids = card.children, allKids = ids.length === kids.length;
+    const Ti = ids.map((i) => 'T' + sub(i + 1)), Ai = ids.map((i) => 'A' + sub(i + 1));
+    const meet = (names) => (names.length > 1 ? '(' + names.join(' ∩ ') + ')' : names.join(''));
+    let tA = Ai.concat(t.cap ? [meet(Ti)] : []).join(' ∪ ');
+    if (t.p) tA = (tA.includes('∪') ? '(' + tA + ')' : tA) + ' \\ {p}';
+    return {
+      T: (allKids ? 'T = ' : '') + ['{p}'].concat(Ti).join(' ∪ '),
+      I: ids.length ? Ti.join(' ∩ ') : 'no child on',
+      A: !ids.length ? 'no child on' : (allKids && t.cap && t.p ? 'A = ' : '') + tA,
+      // The intersection of the children that are on (of all of them when none is on).
+      cap: '∪ ' + meet(ids.length ? Ti : kids.map((_, i) => 'T' + sub(i + 1))),
+    };
+  }
+
   // Step 2's T, intersection and A boards, for the buttons that are on. cards.py ran rule (2) for every
   // choice of children (card.rule2[m - 1], where bit i of m is child i), so the page only picks lists to draw.
   function buildFigs() {
     if (card.line === null) return;
     const kids = card.children, bb = boxOf(card.T), ids = kids.map((_, i) => i).filter((i) => on[i]);
-    const allKids = ids.length === kids.length;
     const m = ids.reduce((sum, i) => sum + 2 ** i, 0), R = m ? card.rule2[m - 1] : null;
     let aKey = terms.cap ? 'union_A | common_T' : 'union_A';
     if (terms.p) aKey = (terms.cap ? '(' + aKey + ')' : aKey) + ' - {p}';
     // With no child on there is nothing to combine: T shows p alone, the other two boards are empty.
     const S = R ? { T: R.T, I: R.common_T, A: R.A[aKey] } : { T: [card.pivot], I: [], A: [] };
-    const Ti = ids.map((i) => 'T' + sub(i + 1)), Ai = ids.map((i) => 'A' + sub(i + 1));
-    const meet = (names) => (names.length > 1 ? '(' + names.join(' ∩ ') + ')' : names.join(''));
-    let tA = Ai.concat(terms.cap ? [meet(Ti)] : []).join(' ∪ ');
-    if (terms.p) tA = (tA.includes('∪') ? '(' + tA + ')' : tA) + ' \\ {p}';
-    $('tT').textContent = (allKids ? 'T = ' : '') + ['{p}'].concat(Ti).join(' ∪ ');
-    $('tI').textContent = ids.length ? Ti.join(' ∩ ') : 'no child on';
-    $('tA').textContent = !ids.length ? 'no child on' : (allKids && terms.cap && terms.p ? 'A = ' : '') + tA;
+    const tt = titles(ids, terms);
+    for (const key of ['T', 'I', 'A', 'cap']) $('t' + key).textContent = tt[key];
     const at = { bb, p: card.pivot, edge: card.T, frame: 'card' };
     $('bT').innerHTML = board({ ...at, T: S.T, label: 'p and the envelopes of the children that are on' });
     $('bI').innerHTML = board({ ...at, T: S.I, label: 'The cells in the envelope of every child that is on' });
     $('bA').innerHTML = board({ ...at, T: S.A, A: S.A, label: 'A for the children and terms that are on' });
     for (const b of document.querySelectorAll('[data-tog]')) b.setAttribute('aria-pressed', String(on[+b.dataset.tog]));
     for (const b of document.querySelectorAll('[data-term]')) b.setAttribute('aria-pressed', String(terms[b.dataset.term]));
-    // The cap button names the intersection of the children that are on (of all of them when none is on).
-    document.querySelector('[data-term="cap"]').textContent = '∪ ' + meet(ids.length ? Ti : kids.map((_, i) => 'T' + sub(i + 1)));
   }
 
   // ---------- highlight one cell everywhere ----------
