@@ -5,6 +5,21 @@ A bare-bones companion to the main viewer, for checking the start of the
 lines 6–310. Card 311 is the first line with parentheses (an inline
 expression), so it is left out.
 
+## How to interpret the visualization
+
+Look at the card diagram on the left- it represents valid claim (A,T,h). Cells in A, (the required set) are marked with an X. Maker already owns these. Cells with numbers, and the cell with a gray border, are in T (the envelope). Breaker doesn't own these.
+It's maker's turn. He claims the pivot (the cell with a gray border) if it's available. If it isn't, he's already claimed it.
+
+Now maker owns the X cells and the pivot. It's breaker's turn, and she claims a cell.
+
+If she claims a cell marked with a "1" or a cell without a number, then the game proceeds to the Child 1 valid claim. Look at the Child diagram on the right. It shows A_j and T_j for child j on the left, and its placement within the parent card on the right. Click the pivot (the cell outlined in gray) on the right. It highlights the cell in all three diagrams. Look at the bottom of the child diagram to trace how the child cell was transformed to obtain the pivot. Transformations R_s and + (U,V) depend on s and UV in the child reference j:sUV.
+
+If breaker claimed a cell marked with a "2" in the card diagram, then she has blocked continuation to child 1 but child 2 is still available. Click on the orange button for child 2 near the top of the screen. The child visualizations change to show A_j and T_j for child 2, and at the bottom of the Child diagrams the transformations change to reflect permutation R_s and translation UV in child 2's reference j:sUV.
+
+In general, if breaker claimed a cell marked with "n" in the card diagram, she blocked continuation to children 1, 2, ..., n-1 but child n remains available.
+
+This gives us a deterministic strategy for Maker, with explicit transitions from a card to one of its children based on breaker's reply.
+
 ## Files
 
 | File | What it is | Do you need to read it? |
