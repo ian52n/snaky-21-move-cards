@@ -11,11 +11,12 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:wght@500;600&display=swap">
 <style>
 /* Layout: one column of steps for the open card. Step 1 places each child (stored board -> placed board);
-   step 2 builds T, the intersection of the children's envelopes, and A, then shows the card.
-   Buttons pick the children and A's last two terms.
+   step 2 builds T and A, then shows the card with the cells of the children that are on colored in.
+   Buttons pick the children (for the T board and the card board) and A's last two terms.
    Every board uses the same marks for card n and its children: white cell = envelope, X = required,
    frame = card n's pivot p, dashed line = edge of card n's envelope.
-   Each child keeps one color for its certificate word, its step 1 panel and its step 2 button.
+   Each child keeps one color for its certificate word, its step 1 panel, its step 2 button
+   and its cells on step 2's card board.
    The page only draws cards.js: cards.py computed every set, including rule (2) for every choice of buttons.
    Every sentence about a cell is a trace() line from cards.py. */
 :root {
@@ -33,7 +34,7 @@
   --ink: #131615;
   --pmark: #66706a;  /* p's frame: readable on white cells and on the dark ground */
   --accent-wash: rgba(36, 87, 197, 0.16);
-  /* Child colors, in certificate order. They mark a child's word, panel and button, never board cells. */
+  /* Child colors, in certificate order. On boards they only appear on step 2's card board. */
   --k1: #6da7ec; --k2: #f08356; --k3: #36b9a0; --k4: #e0a318; --k5: #e98bb0; --k6: #5aae3c;
   --font-display: "STIX Two Text", "STIX Two", Cambria, Georgia, serif;
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -141,11 +142,11 @@ details.cells summary { cursor: pointer; color: var(--link); font-size: 0.86rem;
 .tog[aria-pressed="true"] { background: var(--surface); color: var(--fg); border-color: var(--kc); box-shadow: inset 0 -3px 0 var(--kc); }
 .tog[aria-pressed="false"] .sw { background: none; box-shadow: inset 0 0 0 1.5px var(--kc); }
 .tog.term { --kc: var(--muted); min-height: 32px; padding: 2px 10px; font-size: 0.84rem; max-width: 100%; text-align: left; }
-.combine { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.combine { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .combine figure { margin: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 8px 10px 10px; display: grid; gap: 6px; grid-template-rows: auto 1fr; min-width: 0; }
 .combine figcaption { font-size: 0.8rem; color: var(--muted); }
 .combine figcaption b { display: grid; color: var(--fg); font-weight: 600; font-family: var(--font-mono); font-size: 0.84rem; margin-bottom: 2px; }
-/* Step 2's titles and the intersection button change with the buttons. Each sits on hidden copies of its
+/* Step 2's T and A titles change with the buttons. Each sits on hidden copies of its
    longest forms, so it always takes the same room and the boards below it never move. */
 .stack { display: grid; }
 .stack > * { grid-area: 1 / 1; }
@@ -164,6 +165,9 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
 .b-ground { fill: var(--surface); }
 .b-grid { fill: none; stroke: var(--grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .b-cell { fill: var(--cell); }
+/* A child's cells on step 2's card board: light for its envelope, solid for its required cells. */
+.b-tint { fill: var(--kc); fill-opacity: 0.55; }
+.b-solid { fill: color-mix(in srgb, var(--kc) 80%, #000); }
 .b-edge { fill: none; stroke: var(--cell-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .b-x { fill: none; stroke: var(--ink); stroke-width: 0.11; stroke-linecap: round; }
 .b-p { fill: none; stroke: var(--pmark); stroke-width: 0.12; }
@@ -205,11 +209,11 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
 </main>
 
 <footer class="wrap">
-  <div>Every set, height and cell trace on this page was computed by <code>cards.py</code> and saved in <code>cards.js</code>. The page only draws that data. For the step 2 buttons, <code>cards.py</code> ran rule (2) on every choice of children, and the page draws the one you pick. Cards 6–310 are lines 1–305 of <code>certificate.txt</code>, Appendix D of “Snaky in 21 Maker moves” (OpenAI, 2026), used unchanged under the Apache License 2.0.</div>
+  <div>Every set, height and cell trace on this page was computed by <code>cards.py</code> and saved in <code>cards.js</code>. The page only draws that data. For the step 2 buttons, <code>cards.py</code> ran rule (2) on every choice of children and of A’s last two terms, and the page draws the one you pick. Cards 6–310 are lines 1–305 of <code>certificate.txt</code>, Appendix D of “Snaky in 21 Maker moves” (OpenAI, 2026), used unchanged under the Apache License 2.0.</div>
   <div>An independent study aid, not affiliated with or endorsed by OpenAI.</div>
 </footer>
 
-<script src="cards.js?v=rule2"></script><!-- change v when cards.js changes shape, so browsers drop a cached copy -->
+<script src="cards.js?v=step2"></script><!-- change v when cards.js changes shape, so browsers drop a cached copy -->
 <script>
 (function () {
   'use strict';
@@ -256,10 +260,12 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
   }
   const squares = (cells, bb) => cells.map(([x, y]) => 'M' + (x - bb.x0) + ' ' + (bb.y1 - y) + 'h1v1h-1z').join('');
   // One set of marks for every board, whether it shows card n or a child:
-  // o: { bb, T, A, p, edge, frame: 'card' | 'own', child, label }
+  // o: { bb, T, A, p, edge, kids, frame: 'card' | 'own', child, label }
   //   T: envelope cells, drawn white.  A: required cells, which get an X (list them in T too).
   //   p: card n's pivot, drawn as a frame on top, so the cell's own mark stays visible.
   //   edge: card n's envelope, drawn as a dashed edge.
+  //   kids: children to color in, [{ i, T, A }]. One child fills whole cells. With k children, each
+  //   cell is cut into k stripes and the j-th child in the list only ever colors stripe j.
   function board(o) {
     const bb = o.bb, W = bb.x1 - bb.x0 + 1, H = bb.y1 - bb.y0 + 1;
     const T = o.T || [];
@@ -273,6 +279,13 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     s += '<path class="b-grid" d="' + g + '"/>';
     if (o.edge) s += '<path class="b-penv" d="' + outline(o.edge, bb) + '"/>';
     s += '<path class="b-cell" d="' + squares(T, bb) + '"/>';
+    const k = (o.kids || []).length, w = k ? +(1 / k).toFixed(4) : 0;
+    (o.kids || []).forEach((c, j) => {
+      const dx = +(j / k).toFixed(4);
+      const strip = (cells) => cells.map(([x, y]) => 'M' + (x - bb.x0 + dx) + ' ' + (bb.y1 - y) + 'h' + w + 'v1h' + -w + 'z').join('');
+      // Required cells are in the child's envelope too, so solid goes on top of light.
+      s += '<path class="b-tint" ' + kc(c.i) + ' d="' + strip(c.T) + '"/><path class="b-solid" ' + kc(c.i) + ' d="' + strip(c.A) + '"/>';
+    });
     s += '<path class="b-edge" d="' + squares(T, bb) + '"/>';
     let xs = '';
     for (const [x, y] of o.A || []) {
@@ -377,66 +390,68 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     s += '</div></section>';
 
     const Ts = kids.map((_, i) => 'T' + sub(i + 1)), As = kids.map((_, i) => 'A' + sub(i + 1));
-    // A text that the buttons change, on hidden copies of its longest forms: every button on, and no child on.
-    // Any other choice drops some of the words of the first, so it never needs more room.
+    const meet = Ts.length > 1 ? '(' + Ts.join(' ∩ ') + ')' : Ts[0];
+    // A title that the buttons change sits on hidden copies of its longest forms: every button on, and no
+    // child on. Any other choice drops some of the words of the first, so it never needs more room.
     const full = titles(kids.map((_, i) => i), { cap: true, p: true }), none = titles([], { cap: true, p: true });
     const sized = (key) => '<span id="t' + key + '"></span>' + [...new Set([full[key], none[key]])]
       .map((g) => '<span class="ghost" aria-hidden="true">' + esc(g) + '</span>').join('');
     const fig = (id, text, extra) => '<figure><figcaption><b class="stack">' + sized(id) + '</b>' + text + (extra || '')
       + '</figcaption><div class="bd" id="b' + id + '"></div></figure>';
     s += '<section class="step"><h2><span class="n">2</span>Build T and A at the pivot ' + fmt(card.pivot) + '</h2>'
-      + '<p class="note">Rule (2): T = {p} ∪ ' + Ts.join(' ∪ ') + ' and A = (' + As.join(' ∪ ') + ' ∪ (' + Ts.join(' ∩ ') + ')) \\ {p}. '
-      + 'The child buttons choose which children go into the first three boards. The A board has its own buttons for its last two terms. '
-      + 'With every button on, the boards show card ' + n + '’s T and A.</p>'
-      + '<div class="togs" role="group" aria-label="Children that go into the T, intersection and A boards">'
+      + '<p class="note">Rule (2): T = {p} ∪ ' + Ts.join(' ∪ ') + ' and A = (' + As.join(' ∪ ') + ' ∪ ' + meet + ') \\ {p}. '
+      + 'The child buttons choose which children go into the T board, and color those children’s cells on the card ' + n + ' board. '
+      + 'The A board always uses every child, and has its own buttons for its last two terms. '
+      + 'With every button on, the T and A boards show card ' + n + '’s T and A.</p>'
+      + '<div class="togs" role="group" aria-label="Children for the T board and the colors on the card board">'
       + kids.map((c, i) => '<button type="button" class="tog" data-tog="' + i + '" aria-pressed="true" ' + kc(i) + '>'
         + sw(i) + 'child ' + (i + 1) + ' <code>' + esc(c.word) + '</code></button>').join('') + '</div>'
       + '<div class="combine">'
       + fig('T', 'p and the envelope of each child that is on. With every child on, the cells fill the dashed edge of T.')
-      + fig('I', 'The cells in the envelope of every child that is on. Turn a child on and the cells outside its envelope drop out.')
-      + fig('A', 'The required cells of each child that is on, then the two terms below.',
+      + fig('A', 'The required cells of every child, then the two terms below.',
         '<span class="togs" role="group" aria-label="Last two terms of A">'
-        + '<button type="button" class="tog term" data-term="cap" aria-pressed="true"><span class="stack">' + sized('cap') + '</span></button>'
+        + '<button type="button" class="tog term" data-term="cap" aria-pressed="true">∪ ' + meet + '</button>'
         + '<button type="button" class="tog term" data-term="p" aria-pressed="true">\\ {p}</button></span>')
-      + '<figure class="result"><figcaption><b>card ' + n + '</b>A and T together. h = 1 + max(' + kids.map((c) => c.h).join(', ') + ') = ' + card.h + '</figcaption>'
-      + '<div class="bd">' + board({ bb, A: card.A, T: card.T, p: card.pivot, frame: 'card', label: 'Card ' + n }) + '</div></figure></div>'
+      + '<figure><figcaption><b>card ' + n + '</b>A and T together, with h = 1 + max(' + kids.map((c) => c.h).join(', ') + ') = ' + card.h + '. '
+      + 'Each child that is on colors its cells: light for its envelope, solid for the cells it requires. '
+      + 'With more than one on, each cell has a stripe for each of them, in button order.</figcaption>'
+      + '<div class="bd" id="bC"></div></figure></div>'
       + '<p class="note">Tap a cell on any board to ring it on every board. Step 1 then shows the line that puts it in each child.</p>'
       + '</section>';
     return s;
   }
 
-  // Step 2's board titles and the intersection button's label, for the children in ids and the terms in t.
+  // Step 2's T and A titles. T is for the children in ids; A always uses every child, with the terms in t.
   function titles(ids, t) {
     const kids = card.children, allKids = ids.length === kids.length;
-    const Ti = ids.map((i) => 'T' + sub(i + 1)), Ai = ids.map((i) => 'A' + sub(i + 1));
-    const meet = (names) => (names.length > 1 ? '(' + names.join(' ∩ ') + ')' : names.join(''));
-    let tA = Ai.concat(t.cap ? [meet(Ti)] : []).join(' ∪ ');
+    const Ti = ids.map((i) => 'T' + sub(i + 1));
+    const Ts = kids.map((_, i) => 'T' + sub(i + 1)), As = kids.map((_, i) => 'A' + sub(i + 1));
+    const meet = Ts.length > 1 ? '(' + Ts.join(' ∩ ') + ')' : Ts[0];
+    let tA = As.concat(t.cap ? [meet] : []).join(' ∪ ');
     if (t.p) tA = (tA.includes('∪') ? '(' + tA + ')' : tA) + ' \\ {p}';
     return {
       T: (allKids ? 'T = ' : '') + ['{p}'].concat(Ti).join(' ∪ '),
-      I: ids.length ? Ti.join(' ∩ ') : 'no child on',
-      A: !ids.length ? 'no child on' : (allKids && t.cap && t.p ? 'A = ' : '') + tA,
-      // The intersection of the children that are on (of all of them when none is on).
-      cap: '∪ ' + meet(ids.length ? Ti : kids.map((_, i) => 'T' + sub(i + 1))),
+      A: (t.cap && t.p ? 'A = ' : '') + tA,
     };
   }
 
-  // Step 2's T, intersection and A boards, for the buttons that are on. cards.py ran rule (2) for every
-  // choice of children (card.rule2[m - 1], where bit i of m is child i), so the page only picks lists to draw.
+  // Step 2's boards, for the buttons that are on. cards.py ran rule (2) for every choice of children
+  // (card.step2.T[m - 1], where bit i of m is child i) and for A's four choices of terms (card.step2.A),
+  // so the page only picks lists to draw.
   function buildFigs() {
     if (card.line === null) return;
     const kids = card.children, bb = boxOf(card.T), ids = kids.map((_, i) => i).filter((i) => on[i]);
-    const m = ids.reduce((sum, i) => sum + 2 ** i, 0), R = m ? card.rule2[m - 1] : null;
+    const m = ids.reduce((sum, i) => sum + 2 ** i, 0);
     let aKey = terms.cap ? 'union_A | common_T' : 'union_A';
     if (terms.p) aKey = (terms.cap ? '(' + aKey + ')' : aKey) + ' - {p}';
-    // With no child on there is nothing to combine: T shows p alone, the other two boards are empty.
-    const S = R ? { T: R.T, I: R.common_T, A: R.A[aKey] } : { T: [card.pivot], I: [], A: [] };
     const tt = titles(ids, terms);
-    for (const key of ['T', 'I', 'A', 'cap']) $('t' + key).textContent = tt[key];
-    const at = { bb, p: card.pivot, edge: card.T, frame: 'card' };
-    $('bT').innerHTML = board({ ...at, T: S.T, label: 'p and the envelopes of the children that are on' });
-    $('bI').innerHTML = board({ ...at, T: S.I, label: 'The cells in the envelope of every child that is on' });
-    $('bA').innerHTML = board({ ...at, T: S.A, A: S.A, label: 'A for the children and terms that are on' });
+    $('tT').textContent = tt.T; $('tA').textContent = tt.A;
+    const at = { bb, p: card.pivot, frame: 'card' };
+    // With no child on there is nothing to combine, so T is p alone.
+    $('bT').innerHTML = board({ ...at, edge: card.T, T: m ? card.step2.T[m - 1] : [card.pivot], label: 'p and the envelopes of the children that are on' });
+    $('bA').innerHTML = board({ ...at, edge: card.T, T: card.step2.A[aKey], A: card.step2.A[aKey], label: 'A for the terms that are on' });
+    $('bC').innerHTML = board({ ...at, T: card.T, A: card.A, label: 'Card ' + card.n + ', with the cells of the children that are on colored in',
+      kids: ids.map((i) => ({ i, T: kids[i].T, A: kids[i].A })) });
     for (const b of document.querySelectorAll('[data-tog]')) b.setAttribute('aria-pressed', String(on[+b.dataset.tog]));
     for (const b of document.querySelectorAll('[data-term]')) b.setAttribute('aria-pressed', String(terms[b.dataset.term]));
   }

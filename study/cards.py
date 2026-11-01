@@ -241,27 +241,26 @@ def show(cards, n):
 
 # ---------------------------------------------------------------- 6. Data for the web page
 
-def rule2_for_each_choice(card):
-    """Rule (2) for every nonempty choice of card's children, for the buttons in step 2 of index.html.
+def step2_sets(card):
+    """The sets behind the buttons in step 2 of index.html. The page only picks one of them to draw.
 
-    Child i is in choice m when bit i of m is set; m = 2**k - 1 chooses all k children.
-    Entry m - 1 holds that choice's T, its intersection common_T, and A four ways,
-    with and without the term common_T and with and without '- {p}'.
-    The page only picks one of these lists to draw."""
+    'T': rule (2)'s T for every nonempty choice of card's children, for the T board.
+        Child i is in choice m when bit i of m is set, and entry m - 1 is that choice's T.
+    'A': rule (2)'s A for all of the children, four ways, for the A board:
+        with and without the term common_T, and with and without '- {p}'."""
     p, kids = card['pivot'], card['children']
-    out = []
+    T_each = []
     for m in range(1, 2 ** len(kids)):
         chosen = [c for i, c in enumerate(kids) if m & (1 << i)]
-        union_A, common_T, T, A = rule2(p, chosen)
-        out.append({'T': sorted(T), 'common_T': sorted(common_T), 'A': {
-            'union_A': sorted(union_A),
-            'union_A | common_T': sorted(union_A | common_T),
-            'union_A - {p}': sorted(union_A - {p}),
-            '(union_A | common_T) - {p}': sorted(A)}})
-    # Choosing every child gives the card itself.
-    assert out[-1]['T'] == sorted(card['T']) and out[-1]['A']['(union_A | common_T) - {p}'] == sorted(card['A'])
-    assert out[-1]['common_T'] == sorted(card['common_T'])
-    return out
+        T_each.append(sorted(rule2(p, chosen)[2]))
+    union_A, common_T, T, A = rule2(p, kids)
+    A_four = {'union_A': sorted(union_A),
+              'union_A | common_T': sorted(union_A | common_T),
+              'union_A - {p}': sorted(union_A - {p}),
+              '(union_A | common_T) - {p}': sorted(A)}
+    # Choosing every child, with every term, gives the card itself.
+    assert T_each[-1] == sorted(card['T']) and A_four['(union_A | common_T) - {p}'] == sorted(card['A'])
+    return {'T': T_each, 'A': A_four}
 
 
 def write_web_data(cards, path):
@@ -281,7 +280,7 @@ def write_web_data(cards, path):
                     # one line per stored cell: where it starts, where it lands, and trace()'s text
                     'lines': [[cell, place(cell, c['s'], c['dx'], c['dy']), trace(c, old, cell)]
                               for cell in sorted(old['T'])]})
-            entry['rule2'] = rule2_for_each_choice(card)
+            entry['step2'] = step2_sets(card)
         out.append(entry)
     path.write_text('const CARDS = ' + json.dumps(out, separators=(',', ':')) + ';\n')
 

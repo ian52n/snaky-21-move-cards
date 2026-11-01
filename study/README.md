@@ -11,7 +11,7 @@ expression), so it is left out.
 | --- | --- | --- |
 | `cards.py` | All of the math: reading a line, placing children, rule (2), the cell traces, drawings | Yes. About 300 lines, standard library only; the math is in the first 160 lines. |
 | `cards.js` | Data written by `python3 cards.py --web` | No. It is the Python's output. |
-| `index.html` | Draws `cards.js` | No. It does no geometry or set operations, and every sentence about a cell is a line written by `trace` in `cards.py`. Its step 2 buttons only pick which of the Python's sets to draw. |
+| `index.html` | Draws `cards.js` | No. It does no geometry or set operations, and every sentence about a cell is a line written by `trace` in `cards.py`. Its step 2 buttons only pick which of the Python's sets to draw, and which children's placed cells to color in. |
 
 ## Running the Python
 
@@ -46,9 +46,11 @@ make it so), so children show it as `o`.
    prints a whole card.
 6. **Data for the web page**: `write_web_data` saves each card's sets, each
    child's placed sets and its `trace` lines. For the step 2 buttons,
-   `rule2_for_each_choice` runs `rule2` on every nonempty choice of the card's
-   children and saves T, ⋂Tᵢ and A with and without each of A's last two terms.
-   Choosing every child gives back the card, and the code checks that.
+   `step2_sets` runs `rule2` on every nonempty choice of the card's children
+   and saves each choice's T (the T board). It also saves A for all of the
+   children, with and without each of A's last two terms (the A board).
+   Choosing every child and every term gives back the card, and the code checks
+   that. The card board colors in the placed sets of the children that are on.
 
 ## What has been cross-checked
 
