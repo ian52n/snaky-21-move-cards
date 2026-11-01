@@ -12,6 +12,8 @@
 /* A minimal version of ../index.html. The certificate line picks one child at a time.
    Left: card n, with that child's cells colored in (light = its envelope, solid = its required cells).
    Right: that child as stored, and placed in card n.
+   The numbers on card n's board show why the card works: after Maker takes p, each cell Breaker
+   could take in T names the first child whose envelope that move leaves clean (from cards.py).
    Every board for one card keeps its size when the child changes: the stored boards are all padded
    to the largest stored card among the children, and every board uses one cell size, --cs. */
 :root {
@@ -100,7 +102,9 @@ h1 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: c
 }
 .panel { grid-row: 1 / 4; display: grid; grid-template-rows: subgrid; row-gap: 10px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px 12px; min-width: 0; }
 .panel.kid { border-left: 5px solid var(--kc); }
-.ttl { align-self: start; font-family: var(--font-mono); font-weight: 600; font-size: 0.9rem; }
+.chead { width: 0; min-width: 100%; align-self: start; display: grid; gap: 4px; }
+.ttl { font-family: var(--font-mono); font-weight: 600; font-size: 0.9rem; }
+.note { margin: 0; color: var(--muted); font-size: 0.8rem; line-height: 1.4; }
 .cfig { margin: 0; align-self: end; display: grid; gap: 2px; }
 /* Text never sets a panel's width, so a longer line for one child can't widen it. */
 .khead, .trace { width: 0; min-width: 100%; }
@@ -133,6 +137,7 @@ svg.board { display: block; width: calc(var(--u) * var(--cs)); height: auto; tou
 .b-p { fill: none; stroke: var(--pmark); stroke-width: 0.12; }
 .b-penv { fill: none; stroke: var(--muted); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
 .b-axis { fill: var(--muted); font-family: var(--font-mono); font-size: 0.42px; }
+.b-num { fill: color-mix(in srgb, var(--kc) 62%, #000); font-family: var(--font-mono); font-weight: 600; font-size: 0.5px; }
 .b-halo { fill: none; stroke: #ffffff; stroke-width: 7; vector-effect: non-scaling-stroke; }
 .b-focus { fill: none; stroke: var(--ink); stroke-width: 3; vector-effect: non-scaling-stroke; }
 
@@ -169,7 +174,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
   <div>An independent study aid, not affiliated with or endorsed by OpenAI.</div>
 </footer>
 
-<script src="../cards.js?v=step2"></script>
+<script src="../cards.js?v=replies"></script>
 <script>
 (function () {
   'use strict';
@@ -226,6 +231,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
   //   T: envelope cells, drawn white.  A: required cells, which get an X (list them in T too).
   //   p: card n's pivot, drawn as a frame on top.  edge: card n's envelope, drawn as a dashed edge.
   //   kid: a child to color in, { i, T, A }: light for its envelope, solid for its required cells.
+  //   nums: [[cell, i], ...]: write child i's number, in its color, in the cell.
   function board(o) {
     const bb = o.bb, W = widthOf(bb), H = heightOf(bb);
     const T = o.T || [];
@@ -248,6 +254,9 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
       xs += 'M' + (X + 0.24) + ' ' + (Y + 0.24) + 'L' + (X + 0.76) + ' ' + (Y + 0.76) + 'M' + (X + 0.76) + ' ' + (Y + 0.24) + 'L' + (X + 0.24) + ' ' + (Y + 0.76);
     }
     s += '<path class="b-x" d="' + xs + '"/>';
+    for (const [[x, y], i] of o.nums || []) {
+      s += '<text class="b-num" ' + kc(i) + ' x="' + (x - bb.x0 + 0.5) + '" y="' + (bb.y1 - y + 0.68) + '" text-anchor="middle">' + (i + 1) + '</text>';
+    }
     if (o.p) s += '<rect class="b-p" x="' + (o.p[0] - bb.x0 + 0.08) + '" y="' + (bb.y1 - o.p[1] + 0.08) + '" width="0.84" height="0.84"/>';
     for (let x = bb.x0; x <= bb.x1; x++) s += '<text class="b-axis" x="' + (x - bb.x0 + 0.5) + '" y="' + (H + 0.62) + '" text-anchor="middle">' + num(x) + '</text>';
     for (let y = bb.y0; y <= bb.y1; y++) s += '<text class="b-axis" x="-0.2" y="' + (bb.y1 - y + 0.65) + '" text-anchor="end">' + num(y) + '</text>';
@@ -295,7 +304,9 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
       total += units(stored[0]) + units(bb);
     }
     $('stage').style.setProperty('--total', total);
-    $('stage').innerHTML = '<section class="panel" aria-label="Card ' + n + '"><b class="ttl">card ' + n + '</b>'
+    $('stage').innerHTML = '<section class="panel" aria-label="Card ' + n + '"><div class="chead"><b class="ttl">card ' + n + '</b>'
+      + (isBase ? '' : '<p class="note">After Maker takes p, every cell Breaker could take in T has a number: '
+        + 'the first child whose envelope that move leaves clean.</p>') + '</div>'
       + '<figure class="cfig"><div id="cboard"></div><figcaption aria-hidden="true">&nbsp;</figcaption></figure><span></span></section>'
       + (isBase ? '' : '<section class="panel kid" id="kid"></section>');
     draw();
@@ -306,7 +317,7 @@ footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16p
     const n = card.n, c = card.line === null ? null : card.children[active];
     $('cboard').innerHTML = board({ bb, A: card.A, T: card.T, p: card.pivot, frame: 'card',
       label: c ? 'Card ' + n + ', with child ' + (active + 1) + '’s cells colored in' : 'Card ' + n,
-      kid: c ? { i: active, T: c.T, A: c.A } : null });
+      kid: c ? { i: active, T: c.T, A: c.A } : null, nums: card.replies });
     if (c) {
       const old = CARDS[c.card], kid = $('kid');
       kid.setAttribute('style', '--kc:var(--k' + (active + 1) + ')');

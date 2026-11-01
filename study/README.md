@@ -12,7 +12,7 @@ expression), so it is left out.
 | `cards.py` | All of the math: reading a line, placing children, rule (2), the cell traces, drawings | Yes. About 300 lines, standard library only; the math is in the first 160 lines. |
 | `cards.js` | Data written by `python3 cards.py --web` | No. It is the Python's output. |
 | `index.html` | Draws `cards.js` | No. It does no geometry or set operations, and every sentence about a cell is a line written by `trace` in `cards.py`. Its step 2 buttons only pick which of the Python's sets to draw, and which children's placed cells to color in. |
-| `minimal/index.html` | A smaller page from the same `cards.js`: the certificate line picks one child, shown colored in on the card and as stored and placed | No. It draws only, like `index.html`. |
+| `minimal/index.html` | A smaller page from the same `cards.js`: the certificate line picks one child, shown colored in on the card and as stored and placed. Numbers on the card show, for each cell Breaker could take after Maker takes p, the first child left clean. | No. It draws only, like `index.html`. |
 
 ## Running the Python
 
@@ -39,9 +39,12 @@ make it so), so children show it as `o`.
 3. **The cards**: `base` is Lemma 4. `rule2` is Lemma 3, rule (2):
    T = {p} ∪ ⋃Tᵢ and A = (⋃Aᵢ ∪ ⋂Tᵢ) \ {p}. `combine` places the children,
    applies `rule2` and sets h = 1 + max hᵢ.
+   `first_clean_child` shows why a card works: after Maker takes p, each cell
+   Breaker could take in T (outside A and p) misses some child's envelope, so
+   that child is still clean. It returns the first such child for each cell.
    `all_cards` reads certificate lines 6–310 in order.
-4. **Checks**: table (5), and cards 6 and 7, which Section 3.2 of the paper
-   works out by hand.
+4. **Checks**: table (5), cards 6 and 7, which Section 3.2 of the paper
+   works out by hand, and `first_clean_child` on every card 6–310.
 5. **Showing a card**: `picture` draws, `trace` follows one stored cell into
    place (`X  (3, 0) -> R_7 -> (0, -3) -> + (1, 4) -> (1, 1)`), and `show`
    prints a whole card.
@@ -52,6 +55,7 @@ make it so), so children show it as `o`.
    children, with and without each of A's last two terms (the A board).
    Choosing every child and every term gives back the card, and the code checks
    that. The card board colors in the placed sets of the children that are on.
+   For the minimal page, `replies` holds `first_clean_child` for each card.
 
 ## What has been cross-checked
 

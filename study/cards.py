@@ -139,6 +139,22 @@ def combine(number, line, cards):
             'common_T': common_T, 'A': A, 'T': T, 'h': h}
 
 
+def first_clean_child(card):
+    """Why the card works (Section 4 of the paper). Maker takes the pivot p (or, if he already has it,
+    any other cell). Breaker answers with one cell b. Maker then plays on with a child whose envelope
+    T_j does not contain b, since that child's envelope is still clean.
+    Breaker can't take a cell Maker has (A and p), and a cell outside T is in no child's envelope.
+    So only b in T minus A minus p needs checking. Returns {b: index of the first child that b
+    leaves clean}. Rule (2) puts every cell common to all the T_j in A, so there always is one."""
+    owned = card['A'] | {card['pivot']}
+    first = {}
+    for b in sorted(card['T'] - owned):
+        clean = [i for i, c in enumerate(card['children']) if b not in c['T']]
+        assert clean, f"card {card['number']}: Breaker's move {b} touches every child"
+        first[b] = clean[0]
+    return first
+
+
 def all_cards():
     """Cards 0, 1, ..., LAST_CARD, in order. Each card uses only earlier cards."""
     data = CERTIFICATE.read_bytes()
@@ -171,6 +187,9 @@ def check(cards):
     assert cards[7]['A'] == {(0, y) for y in range(1, 5)}
     assert cards[7]['T'] == {(0, y) for y in range(1, 6)} | {(1, y) for y in (0, 1, 2, 4, 5, 6)}
     assert cards[7]['h'] == 3
+    # Every card: whatever Breaker answers to p, some child's envelope is still clean.
+    for card in cards[6:]:
+        first_clean_child(card)
 
 
 # ---------------------------------------------------------------- 5. Showing a card
@@ -192,13 +211,15 @@ def box_of(cells):
     return min(xs), max(xs), min(ys), max(ys)
 
 
-def picture(A, T, pivot=None, box=None):
+def picture(A, T, pivot=None, box=None, labels=None):
     """A text drawing. y grows upward, as in the paper's figures.
-    Pass pivot only for the card being shown; a child's pivot is drawn as o."""
+    Pass pivot only for the card being shown; a child's pivot is drawn as o.
+    labels: {cell: text} to draw instead of the usual mark."""
     x0, x1, y0, y1 = box or box_of(T)  # a card's pivot is always in its T
+    labels = labels or {}
     rows = []
     for y in range(y1, y0 - 1, -1):
-        rows.append(f'{y:>4} ' + ''.join(f'{mark((x, y), A, T, pivot):>3}' for x in range(x0, x1 + 1)))
+        rows.append(f'{y:>4} ' + ''.join(f'{labels.get((x, y)) or mark((x, y), A, T, pivot):>3}' for x in range(x0, x1 + 1)))
     rows.append('     ' + ''.join(f'{x:>3}' for x in range(x0, x1 + 1)))
     return '\n'.join(rows)
 
@@ -237,6 +258,10 @@ def show(cards, n):
     print(f"\n--- rule (2)\nh = 1 + max({heights}) = {card['h']}\n")
     print(f'card {n}:')
     print(picture(card['A'], card['T'], card['pivot']))
+    print("\nafter Maker takes p, a number marks each cell Breaker can take in T: the first child\n"
+          "whose envelope that move leaves clean (outside T, every child's is clean):")
+    labels = {b: str(i + 1) for b, i in first_clean_child(card).items()}
+    print(picture(card['A'], card['T'], card['pivot'], labels=labels))
 
 
 # ---------------------------------------------------------------- 6. Data for the web page
@@ -281,6 +306,8 @@ def write_web_data(cards, path):
                     'lines': [[cell, place(cell, c['s'], c['dx'], c['dy']), trace(c, old, cell)]
                               for cell in sorted(old['T'])]})
             entry['step2'] = step2_sets(card)
+            # for the minimal page: each cell Breaker can take in T, and the first child it leaves clean
+            entry['replies'] = [[b, i] for b, i in first_clean_child(card).items()]
         out.append(entry)
     path.write_text('const CARDS = ' + json.dumps(out, separators=(',', ':')) + ';\n')
 
