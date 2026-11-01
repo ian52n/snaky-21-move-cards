@@ -12,6 +12,7 @@ expression), so it is left out.
 | `cards.py` | All of the math: reading a line, placing children, rule (2), the cell traces, drawings | Yes. About 300 lines, standard library only; the math is in the first 160 lines. |
 | `cards.js` | Data written by `python3 cards.py --web` | No. It is the Python's output. |
 | `index.html` | Draws `cards.js` | No. It does no geometry or set operations, and every sentence about a cell is a line written by `trace` in `cards.py`. Its step 2 buttons only pick which of the Python's sets to draw, and which children's placed cells to color in. |
+| `minimal/index.html` | A smaller page from the same `cards.js`: the certificate line picks one child, shown colored in on the card and as stored and placed | No. It draws only, like `index.html`. |
 
 ## Running the Python
 

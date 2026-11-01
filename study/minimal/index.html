@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Snaky Cards Minimal</title>
+<meta name="description" content="Cards 0–310 of the 21-move Snaky certificate: the card with one child colored in, and that child stored and placed.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=STIX+Two+Text:wght@500;600&display=swap">
+<style>
+/* A minimal version of ../index.html. The certificate line picks one child at a time.
+   Left: card n, with that child's cells colored in (light = its envelope, solid = its required cells).
+   Right: that child as stored, and placed in card n.
+   Every board for one card keeps its size when the child changes: the stored boards are all padded
+   to the largest stored card among the children, and every board uses one cell size, --cs. */
+:root {
+  --bg: #edf1ee;
+  --surface: #f8faf8;
+  --fg: #17201c;
+  --muted: #55645c;
+  --rule: #d0dbd4;
+  --grid: #d3e1d8;
+  --link: #2152b5;
+  --chip: #e2e9e4;
+  /* Board marks. Cells stay white in both themes, as in the main viewer. */
+  --cell: #ffffff;
+  --cell-line: #3a423d;
+  --ink: #131615;
+  --pmark: #66706a;
+  /* Child colors, in certificate order */
+  --k1: #6da7ec; --k2: #f08356; --k3: #36b9a0; --k4: #e0a318; --k5: #e98bb0; --k6: #5aae3c;
+  --font-display: "STIX Two Text", "STIX Two", Cambria, Georgia, serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101513; --surface: #171e1a; --fg: #e1e9e4; --muted: #94a39b; --rule: #29342e;
+    --grid: #232e28; --link: #93b2ff; --chip: #212b26;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101513; --surface: #171e1a; --fg: #e1e9e4; --muted: #94a39b; --rule: #29342e;
+  --grid: #232e28; --link: #93b2ff; --chip: #212b26;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+code { font-family: var(--font-mono); font-size: 0.92em; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.sw { display: inline-block; flex: none; width: 0.85em; height: 0.85em; border-radius: 3px; background: var(--kc); box-shadow: inset 0 0 0 1px rgba(19, 22, 21, 0.35); vertical-align: -0.08em; }
+
+/* Card bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--rule); }
+.bar .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; padding-block: 9px; }
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand b { font-family: var(--font-display); font-size: 1.3rem; font-weight: 600; }
+.brand span { color: var(--muted); font-size: 0.82rem; }
+.pager { display: flex; align-items: center; gap: 8px; }
+.pager button { width: 38px; height: 38px; border-radius: 8px; border: 1px solid var(--rule); background: var(--bg); font-size: 1.05rem; line-height: 1; }
+.pager button:hover { border-color: var(--muted); }
+.pager button:disabled { opacity: 0.35; cursor: default; }
+.pager label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.85rem; }
+.pager input { width: 4.4em; height: 38px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--rule); background: var(--bg); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Head */
+.head { display: grid; gap: 10px; padding-block: 20px 6px; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+h1 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: clamp(1.9rem, 6vw, 2.5rem); line-height: 1.1; font-variant-numeric: lining-nums tabular-nums; }
+/* The certificate line, one labeled word at a time. A child's word picks that child. */
+.line { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-start; }
+.line .w { display: grid; justify-items: start; gap: 3px; border: 0; background: none; padding: 0; text-align: left; }
+.line .w code { font-size: 1rem; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--rule); background: var(--surface); }
+.line .w small { display: flex; align-items: center; gap: 5px; font-size: 0.74rem; color: var(--muted); white-space: nowrap; }
+.line .w.pv code { border-color: var(--pmark); box-shadow: inset 0 0 0 1px var(--pmark); }
+.line button.w code { border-color: var(--kc); box-shadow: inset 0 -3px 0 var(--kc); }
+.line button.w:hover code { background: var(--chip); }
+.line button.w[aria-pressed="true"] code { background: color-mix(in srgb, var(--kc) 30%, var(--surface)); box-shadow: inset 0 0 0 1px var(--kc), inset 0 -3px 0 var(--kc); }
+.line button.w[aria-pressed="true"] small { color: var(--fg); }
+.line .basenote { color: var(--muted); font-size: 0.9rem; }
+
+/* The two panels share three rows (titles, boards, cell line), so card n's board lines up with
+   the placed child board, which has the same cells and the same size. */
+.stage {
+  display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto auto;
+  justify-content: start; column-gap: 16px; padding-block: 18px 6px;
+  --cs: min(48px, calc((min(100vw, 1120px) - 170px) / var(--total)));
+}
+.panel { grid-row: 1 / 4; display: grid; grid-template-rows: subgrid; row-gap: 10px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px 12px; min-width: 0; }
+.panel.kid { border-left: 5px solid var(--kc); }
+.ttl { align-self: start; font-family: var(--font-mono); font-weight: 600; font-size: 0.9rem; }
+.cfig { margin: 0; align-self: end; display: grid; gap: 2px; }
+/* Text never sets a panel's width, so a longer line for one child can't widen it. */
+.khead, .trace { width: 0; min-width: 100%; }
+.khead { display: grid; gap: 6px; align-self: start; }
+.khead header { display: flex; align-items: center; gap: 4px 10px; white-space: nowrap; }
+.ix { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.open { border: 0; background: none; padding: 0; color: var(--link); font-size: 0.88rem; margin-left: auto; }
+.open:hover { text-decoration: underline; }
+.rule { margin: 0; font-family: var(--font-mono); font-size: 0.86rem; white-space: nowrap; }
+.pair { display: flex; align-items: flex-end; gap: 8px; align-self: end; }
+.pair figure { margin: 0; display: grid; gap: 2px; }
+figcaption { font-size: 0.78rem; color: var(--muted); }
+.pair .arrow { color: var(--muted); font-size: 1.1rem; align-self: center; flex: none; }
+.trace { margin: 0; min-height: 2.4em; padding: 6px 9px; border-radius: 7px; background: var(--chip); font-family: var(--font-mono); font-size: 0.82rem; display: flex; flex-wrap: nowrap; align-items: center; gap: 4px 8px; white-space: nowrap; }
+.trace.idle { font-family: var(--font-body); color: var(--muted); font-size: 0.84rem; }
+.trace b { font-weight: 600; }
+.trace i { font-style: normal; }
+.mk { display: inline-grid; place-items: center; flex: none; width: 1.55em; height: 1.55em; border-radius: 3px; font-family: var(--font-mono); font-weight: 600; font-size: 0.82rem; line-height: 1; background: var(--cell); color: var(--ink); box-shadow: inset 0 0 0 1px var(--cell-line); }
+.mk.o { color: #8a948f; font-weight: 400; }
+
+/* Boards: width = the board's width in cells (--u, axis labels included) times --cs. */
+svg.board { display: block; width: calc(var(--u) * var(--cs)); height: auto; touch-action: manipulation; cursor: crosshair; }
+.b-ground { fill: var(--surface); }
+.b-grid { fill: none; stroke: var(--grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.b-cell { fill: var(--cell); }
+.b-tint { fill: var(--kc); fill-opacity: 0.55; }
+.b-solid { fill: color-mix(in srgb, var(--kc) 80%, #000); }
+.b-edge { fill: none; stroke: var(--cell-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.b-x { fill: none; stroke: var(--ink); stroke-width: 0.11; stroke-linecap: round; }
+.b-p { fill: none; stroke: var(--pmark); stroke-width: 0.12; }
+.b-penv { fill: none; stroke: var(--muted); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
+.b-axis { fill: var(--muted); font-family: var(--font-mono); font-size: 0.42px; }
+.b-halo { fill: none; stroke: #ffffff; stroke-width: 7; vector-effect: non-scaling-stroke; }
+.b-focus { fill: none; stroke: var(--ink); stroke-width: 3; vector-effect: non-scaling-stroke; }
+
+footer { border-top: 1px solid var(--rule); margin-top: 20px; padding-block: 16px 28px; font-size: 0.8rem; color: var(--muted); display: grid; gap: 4px; }
+@media (max-width: 640px) {
+  .brand span { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="brand"><b>Snaky</b><span>cards 0–310, step by step</span></div>
+    <nav class="pager" aria-label="Card navigation">
+      <button id="prev" type="button" aria-label="Previous card">←</button>
+      <label for="cardno">Card <input id="cardno" type="number" min="0" max="310" step="1" inputmode="numeric"></label>
+      <button id="next" type="button" aria-label="Next card">→</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="head">
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="title"></h1>
+    <div class="line" id="line"></div>
+  </section>
+  <div class="stage" id="stage"></div>
+</main>
+
+<footer class="wrap">
+  <div>Cards 6–310 are lines 1–305 of <code>certificate.txt</code>, Appendix D of “Snaky in 21 Maker moves” (OpenAI, 2026), used unchanged under the Apache License 2.0.</div>
+  <div>An independent study aid, not affiliated with or endorsed by OpenAI.</div>
+</footer>
+
+<script src="../cards.js?v=step2"></script>
+<script>
+(function () {
+  'use strict';
+  // Drawing and lookups only: every set and cell trace comes from ../cards.js, written by ../cards.py.
+  const $ = (id) => document.getElementById(id);
+  const LAST = CARDS.length - 1;
+  const SUB = '₀₁₂₃₄₅₆₇₈₉';
+
+  // ---------- formatting ----------
+  const num = (n) => (n < 0 ? '−' + (-n) : String(n));
+  const fmt = (p) => '(' + num(p[0]) + ', ' + num(p[1]) + ')';
+  const same = (p, q) => !!p && !!q && p[0] === q[0] && p[1] === q[1];
+  const sub = (i) => String(i).split('').map((d) => SUB[+d]).join('');
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const prettyRule = (s) => esc(s.replace(/->/g, '↦').replace(/-/g, '−'));
+  const kc = (i) => 'style="--kc:var(--k' + (i + 1) + ')"';
+  const sw = (i) => '<i class="sw" ' + kc(i) + '></i>';
+  const mk = (m) => '<span class="mk ' + m + '">' + m + '</span>';
+  // A trace() line from cards.py, 'X  (3, 0) -> R_7 -> (0, -3) -> + (1, 4) -> (1, 1)', typeset.
+  function traceHTML(text) {
+    const path = esc(text.slice(3).replace(/->/g, '→')).replace(/-/g, '−').replace(/R_(\d)/g, (_, d) => 'R' + SUB[+d])
+      .replace(/(?<!\+ )\(−?\d+, −?\d+\)/g, '<b>$&</b>').replace(/\+ \(−?\d+, −?\d+\)/g, '<i>$&</i>');
+    return mk(text[0]) + '<span>' + path + '</span>';
+  }
+
+  // ---------- boards ----------
+  function boxOf(cells) {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const [x, y] of cells) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    return { x0: x0 - 1, x1: x1 + 1, y0: y0 - 1, y1: y1 + 1 };
+  }
+  const widthOf = (bb) => bb.x1 - bb.x0 + 1, heightOf = (bb) => bb.y1 - bb.y0 + 1;
+  const units = (bb) => +(widthOf(bb) + 1.12).toFixed(2); // board width in cells, axis labels included
+  // bb grown to w x h cells, about its middle.
+  function padTo(bb, w, h) {
+    const dw = w - widthOf(bb), dh = h - heightOf(bb);
+    return { x0: bb.x0 - Math.floor(dw / 2), x1: bb.x1 + Math.ceil(dw / 2), y0: bb.y0 - Math.floor(dh / 2), y1: bb.y1 + Math.ceil(dh / 2) };
+  }
+  // The dashed edge of a set of cells: the sides that have no neighbor in the set.
+  function outline(S, bb) {
+    const key = new Set(S.map(([x, y]) => x + ',' + y));
+    let d = '';
+    for (const [x, y] of S) {
+      const X = x - bb.x0, Y = bb.y1 - y;
+      if (!key.has((x - 1) + ',' + y)) d += 'M' + X + ' ' + Y + 'v1';
+      if (!key.has((x + 1) + ',' + y)) d += 'M' + (X + 1) + ' ' + Y + 'v1';
+      if (!key.has(x + ',' + (y + 1))) d += 'M' + X + ' ' + Y + 'h1';
+      if (!key.has(x + ',' + (y - 1))) d += 'M' + X + ' ' + (Y + 1) + 'h1';
+    }
+    return d;
+  }
+  const squares = (cells, bb) => cells.map(([x, y]) => 'M' + (x - bb.x0) + ' ' + (bb.y1 - y) + 'h1v1h-1z').join('');
+  // o: { bb, T, A, p, edge, kid, frame: 'card' | 'own', label }
+  //   T: envelope cells, drawn white.  A: required cells, which get an X (list them in T too).
+  //   p: card n's pivot, drawn as a frame on top.  edge: card n's envelope, drawn as a dashed edge.
+  //   kid: a child to color in, { i, T, A }: light for its envelope, solid for its required cells.
+  function board(o) {
+    const bb = o.bb, W = widthOf(bb), H = heightOf(bb);
+    const T = o.T || [];
+    const vb = [-1.05, -0.06, W + 1.12, H + 0.98].map((v) => +v.toFixed(2)).join(' ');
+    let s = '<svg class="board" style="--u:' + units(bb) + '" viewBox="' + vb + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' + esc(o.label) + '"'
+      + ' data-frame="' + o.frame + '" data-x0="' + bb.x0 + '" data-y1="' + bb.y1 + '" data-w="' + W + '" data-h="' + H + '">';
+    s += '<rect class="b-ground" x="0" y="0" width="' + W + '" height="' + H + '"/>';
+    let g = '';
+    for (let i = 0; i <= W; i++) g += 'M' + i + ' 0V' + H;
+    for (let j = 0; j <= H; j++) g += 'M0 ' + j + 'H' + W;
+    s += '<path class="b-grid" d="' + g + '"/>';
+    if (o.edge) s += '<path class="b-penv" d="' + outline(o.edge, bb) + '"/>';
+    s += '<path class="b-cell" d="' + squares(T, bb) + '"/>';
+    // Required cells are in the child's envelope too, so solid goes on top of light.
+    if (o.kid) s += '<path class="b-tint" ' + kc(o.kid.i) + ' d="' + squares(o.kid.T, bb) + '"/><path class="b-solid" ' + kc(o.kid.i) + ' d="' + squares(o.kid.A, bb) + '"/>';
+    s += '<path class="b-edge" d="' + squares(T, bb) + '"/>';
+    let xs = '';
+    for (const [x, y] of o.A || []) {
+      const X = x - bb.x0, Y = bb.y1 - y;
+      xs += 'M' + (X + 0.24) + ' ' + (Y + 0.24) + 'L' + (X + 0.76) + ' ' + (Y + 0.76) + 'M' + (X + 0.76) + ' ' + (Y + 0.24) + 'L' + (X + 0.24) + ' ' + (Y + 0.76);
+    }
+    s += '<path class="b-x" d="' + xs + '"/>';
+    if (o.p) s += '<rect class="b-p" x="' + (o.p[0] - bb.x0 + 0.08) + '" y="' + (bb.y1 - o.p[1] + 0.08) + '" width="0.84" height="0.84"/>';
+    for (let x = bb.x0; x <= bb.x1; x++) s += '<text class="b-axis" x="' + (x - bb.x0 + 0.5) + '" y="' + (H + 0.62) + '" text-anchor="middle">' + num(x) + '</text>';
+    for (let y = bb.y0; y <= bb.y1; y++) s += '<text class="b-axis" x="-0.2" y="' + (bb.y1 - y + 0.65) + '" text-anchor="end">' + num(y) + '</text>';
+    return s + '<g class="ov"></g></svg>';
+  }
+
+  // ---------- state ----------
+  let card = null;   // CARDS[n]
+  let active = 0;    // the child that is shown
+  let focus = null;  // the highlighted cell, in card n's coordinates
+  let bb = null;     // card n's board
+  let stored = null; // every child's stored board, all padded to one size
+
+  function go(n) {
+    n = Math.max(0, Math.min(LAST, n | 0));
+    if (location.hash !== '#c' + n) location.hash = 'c' + n; else render(n);
+  }
+  function fromHash() {
+    const m = /^#c(\d+)$/.exec(location.hash);
+    render(m ? Math.min(LAST, +m[1]) : 6);
+  }
+
+  // ---------- render one card ----------
+  function render(n) {
+    card = CARDS[n]; active = 0; focus = null; bb = boxOf(card.T);
+    $('cardno').value = n; $('prev').disabled = n <= 0; $('next').disabled = n >= LAST;
+    $('title').textContent = 'Card ' + n;
+    const isBase = card.line === null;
+    $('eyebrow').textContent = isBase ? 'Base card · Lemma 4' : 'Certificate line for card ' + n;
+    if (isBase) {
+      $('line').innerHTML = '<span class="basenote">Not in certificate.txt. Lemma 4: T = S, A = S \\ {s' + sub(n) + '}, h = 1, where s' + sub(n) + ' = ' + fmt(card.pivot) + '.</span>';
+    } else {
+      const words = card.line.split(' ');
+      $('line').innerHTML = '<span class="w"><code>' + esc(words[0]) + '</code><small>card</small></span>'
+        + '<span class="w pv"><code>' + esc(words[1]) + '</code><small>pivot p = ' + fmt(card.pivot) + '</small></span>'
+        + words.slice(2).map((w, i) => '<button type="button" class="w" data-pick="' + i + '" aria-pressed="false" ' + kc(i) + ' title="Show child ' + (i + 1) + '">'
+          + '<code>' + esc(w) + '</code><small>' + sw(i) + 'child ' + (i + 1) + '</small></button>').join('');
+    }
+    // One cell size for every board of this card, so the boards fill the page width at most.
+    let total = units(bb);
+    if (!isBase) {
+      const boxes = card.children.map((c) => boxOf(CARDS[c.card].T));
+      const w = Math.max(...boxes.map(widthOf)), h = Math.max(...boxes.map(heightOf));
+      stored = boxes.map((b) => padTo(b, w, h));
+      total += units(stored[0]) + units(bb);
+    }
+    $('stage').style.setProperty('--total', total);
+    $('stage').innerHTML = '<section class="panel" aria-label="Card ' + n + '"><b class="ttl">card ' + n + '</b>'
+      + '<figure class="cfig"><div id="cboard"></div><figcaption aria-hidden="true">&nbsp;</figcaption></figure><span></span></section>'
+      + (isBase ? '' : '<section class="panel kid" id="kid"></section>');
+    draw();
+  }
+
+  // The card board's colors and the child panel, for the active child.
+  function draw() {
+    const n = card.n, c = card.line === null ? null : card.children[active];
+    $('cboard').innerHTML = board({ bb, A: card.A, T: card.T, p: card.pivot, frame: 'card',
+      label: c ? 'Card ' + n + ', with child ' + (active + 1) + '’s cells colored in' : 'Card ' + n,
+      kid: c ? { i: active, T: c.T, A: c.A } : null });
+    if (c) {
+      const old = CARDS[c.card], kid = $('kid');
+      kid.setAttribute('style', '--kc:var(--k' + (active + 1) + ')');
+      kid.setAttribute('aria-label', 'Child ' + (active + 1));
+      kid.innerHTML = '<div class="khead"><header><span class="ix">' + sw(active) + 'Child ' + (active + 1) + '</span><code>' + esc(c.word) + '</code>'
+        + '<button type="button" class="open" data-go="' + c.card + '">open card ' + c.card + ' →</button></header>'
+        + '<p class="rule">card ' + c.card + ', s = ' + c.s + ': ' + prettyRule(c.rule) + '</p></div>'
+        + '<div class="pair"><figure>' + board({ bb: stored[active], A: old.A, T: old.T, frame: 'own', label: 'Card ' + c.card + ' as stored' })
+        + '<figcaption>card ' + c.card + ' as stored</figcaption></figure>'
+        + '<span class="arrow" aria-hidden="true">→</span>'
+        + '<figure>' + board({ bb, A: c.A, T: c.T, p: card.pivot, edge: card.T, frame: 'card', label: 'Child ' + (active + 1) + ' placed in card ' + n })
+        + '<figcaption>placed in card ' + n + '</figcaption></figure></div>'
+        + '<p class="trace" id="trace"></p>';
+      for (const b of document.querySelectorAll('[data-pick]')) b.setAttribute('aria-pressed', String(+b.dataset.pick === active));
+    }
+    paint();
+  }
+
+  // ---------- highlight one cell everywhere ----------
+  function ringAt(svg, p) {
+    const X = p[0] - +svg.dataset.x0, Y = +svg.dataset.y1 - p[1];
+    if (X < 0 || Y < 0 || X >= +svg.dataset.w || Y >= +svg.dataset.h) return '';
+    const at = ' x="' + X + '" y="' + Y + '" width="1" height="1"/>';
+    return '<rect class="b-halo"' + at + '<rect class="b-focus"' + at;
+  }
+  // The active child's trace line whose cell lands on the highlighted cell, if there is one.
+  const lineFor = () => (focus && card.line !== null ? card.children[active].lines.find((l) => same(l[1], focus)) : null);
+
+  function paint() {
+    const l = lineFor();
+    for (const svg of document.querySelectorAll('svg.board')) {
+      let ov = '';
+      if (svg.dataset.frame === 'card') { if (focus) ov = ringAt(svg, focus); }
+      else if (l) ov = ringAt(svg, l[0]);
+      svg.querySelector('.ov').innerHTML = ov;
+    }
+    if (card.line === null) return;
+    const el = $('trace');
+    el.classList.toggle('idle', !l);
+    el.innerHTML = l ? traceHTML(l[2]) : focus ? 'Not on the list of lines for card ' + card.children[active].card + '.' : 'Tap a cell on any board.';
+  }
+  function setFocus(p) { focus = same(p, focus) ? null : p; paint(); }
+
+  // ---------- events ----------
+  $('stage').addEventListener('click', (ev) => {
+    const btn = ev.target.closest('[data-go]');
+    if (btn) { go(+btn.dataset.go); window.scrollTo({ top: 0 }); return; }
+    const svg = ev.target.closest('svg.board');
+    if (!svg) return;
+    const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    const q = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const X = Math.floor(q.x), Y = Math.floor(q.y);
+    if (X < 0 || Y < 0 || X >= +svg.dataset.w || Y >= +svg.dataset.h) return;
+    const p = [+svg.dataset.x0 + X, +svg.dataset.y1 - Y];
+    if (svg.dataset.frame === 'card') { setFocus(p); return; }
+    const l = card.children[active].lines.find((e) => same(e[0], p)); // a stored cell: jump to where it lands
+    if (l) setFocus(l[1]); else { focus = null; paint(); }
+  });
+  $('line').addEventListener('click', (ev) => {
+    const b = ev.target.closest('button[data-pick]');
+    if (b && +b.dataset.pick !== active) { active = +b.dataset.pick; draw(); }
+  });
+  $('prev').onclick = () => go(card.n - 1);
+  $('next').onclick = () => go(card.n + 1);
+  $('cardno').addEventListener('change', () => go(+$('cardno').value));
+  document.addEventListener('keydown', (ev) => {
+    if (ev.target.tagName === 'INPUT' || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    if (ev.key === 'ArrowLeft') go(card.n - 1);
+    if (ev.key === 'ArrowRight') go(card.n + 1);
+    if (ev.key === 'Escape') { focus = null; paint(); }
+  });
+  window.addEventListener('hashchange', fromHash);
+  fromHash();
+})();
+</script>
+</body>
+</html>
